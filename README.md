@@ -78,6 +78,46 @@ npx github:marcelosartor/ms-ai-tools#v0.1.0
 
 Sem tag, o npx sempre traz o topo da `main`.
 
+### Atualizar uma instalação existente
+
+Não há procedimento especial: rode o instalador de novo. Ele substitui o
+diretório da ferramenta inteiro, e por isso guarda antes o que for seu.
+
+A cada instalação é gravado um manifesto (`.ms-ai-tools.json`) com o hash de
+cada arquivo como ele saiu do pacote. Na atualização seguinte, o instalador
+compara a cópia instalada com esse manifesto — é o que separa "você editou
+este arquivo" de "a versão nova mudou este arquivo", coisa que comparar com o
+pacote novo não distingue.
+
+Se algo seu for encontrado, a instalação anterior é copiada para
+`~/.config/ms-ai-tools/backups/<ferramenta>-v<versão>-<data>/` antes de ser
+substituída, e o instalador diz o que era:
+
+```
+  ✓ ms-codereview        v0.1.0 → v0.2.0
+      3 arquivo(s) alterado(s) por você na cópia instalada — guardados em
+      ~/.config/ms-ai-tools/backups/ms-codereview-v0.1.0-2026-09-03T18-29-45
+        editados: checklists/backend-node-nest.md
+        seus:     checklists/meu-python.md
+```
+
+Nada é guardado quando a cópia instalada está igual ao pacote — atualização
+limpa não deixa lixo. Uma instalação sem manifesto (feita à mão, ou por uma
+versão antiga do instalador) não dá para classificar: nesse caso a cópia é
+guardada por precaução sempre que diferir.
+
+O `.env` fica fora do backup de propósito: já é resgatado para
+`~/.config/ms-ai-tools/.env`, e não há por que espalhar credencial pelos
+backups.
+
+`--no-backup` desliga o comportamento. Backups nunca são apagados
+automaticamente — limpe `~/.config/ms-ai-tools/backups/` quando quiser.
+
+**Melhor ainda é não personalizar a cópia instalada.** Regra específica de um
+projeto pertence ao `CLAUDE.md` do repositório onde a ferramenta roda, que já
+tem precedência. Regra que vale para todo projeto pertence a este repositório,
+por commit — aí ela sobrevive sozinha às atualizações.
+
 ### Onde as coisas ficam
 
 | O quê | Onde | Muda com |
@@ -85,6 +125,7 @@ Sem tag, o npx sempre traz o topo da `main`.
 | Skills | `~/.claude/skills/<ferramenta>/` | `CLAUDE_SKILLS_DIR` |
 | Credenciais | `~/.config/ms-ai-tools/.env` | `MS_AI_TOOLS_CONFIG_DIR` |
 | Dependências (`jq`) | `~/.config/ms-ai-tools/bin/` | `MS_AI_TOOLS_CONFIG_DIR` |
+| Backups de atualização | `~/.config/ms-ai-tools/backups/` | `MS_AI_TOOLS_CONFIG_DIR` |
 
 As credenciais moram **fora** da pasta da skill de propósito: a instalação
 substitui o diretório da ferramenta inteiro, então um `.env` lá dentro se

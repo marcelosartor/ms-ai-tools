@@ -1,4 +1,4 @@
-# ms-codereview v0.1.0
+# ms-codereview v0.2.0
 
 Revisão de pull request de terceiros para o Claude Code: cruza o ticket, a
 descrição do PR e o diff, e fecha com um veredito e um rascunho de
@@ -203,6 +203,11 @@ Cada revisão devolve três blocos, nesta ordem:
    no idioma do PR e sem o jargão de severidade da skill.
 
 ## Manutenção
+
+Edite este repositório, não a cópia instalada. A instalação substitui o
+diretório da skill inteiro; o instalador guarda o que você tiver mudado em
+`~/.config/ms-ai-tools/backups/` e avisa, mas restaurar é manual. Mudança
+feita aqui e comitada sobrevive sozinha a toda atualização.
 
 Corte o que não usar. Regra que fica na lista mas nunca gera achado só dilui
 as que importam.

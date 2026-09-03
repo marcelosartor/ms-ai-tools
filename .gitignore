@@ -7,3 +7,6 @@
 # npm
 node_modules/
 *.tgz
+
+# manifesto gerado pelo instalador
+.ms-ai-tools.json

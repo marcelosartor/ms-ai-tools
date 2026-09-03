@@ -7,3 +7,6 @@
 node_modules/
 *.tgz
 temp/
+
+# manifesto gerado pelo instalador
+.ms-ai-tools.json
