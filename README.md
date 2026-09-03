@@ -26,6 +26,47 @@ Requer Node >= 18.
 Quem clonou usa o mesmo instalador pelo atalho `./install.sh <mesmos
 argumentos>`.
 
+O instalador faz duas perguntas: **onde instalar** e **qual tracker você
+usa**. Ambas têm flag equivalente, e fora de terminal (CI, pipe) ele nunca
+pergunta — assume global e não mexe em credencial, para não travar.
+
+### Global ou local
+
+| Escopo | Onde | Vale em | Flag |
+|---|---|---|---|
+| Global | `~/.claude/skills/` | todos os seus projetos | `--global` |
+| Local | `./.claude/skills/` (diretório corrente) | só esse projeto; pode ser comitado | `--local` |
+
+`--dir <caminho>` instala num diretório específico; `CLAUDE_SKILLS_DIR`
+continua funcionando e dispensa a pergunta.
+
+Instalar local permite comitar a skill junto com o código, e o time inteiro
+recebe sem instalar nada. Uma ressalva que o instalador avisa sozinho: **a
+skill pessoal vence a de projeto**, então se a mesma ferramenta já estiver
+instalada global, é ela que roda — remova a global para a local valer.
+
+Credenciais e dependências ficam sempre no seu diretório de usuário, mesmo na
+instalação local. Token é por pessoa, não por repositório, e comitar um seria
+um problema.
+
+### Qual tracker
+
+A pergunta serve para já preparar o `.env`. Escolhido o tracker, o instalador
+escreve as variáveis dele em `~/.config/ms-ai-tools/.env` com valores de
+exemplo, e diz onde pegar o token de verdade:
+
+```
+  ✓ Jira Cloud: 3 variável(is) escritas em ~/.config/ms-ai-tools/.env
+      edite o arquivo e substitua os valores de exemplo (id.atlassian.com/…)
+```
+
+**Valor já preenchido nunca é sobrescrito** — o instalador não tem como saber
+se o que está lá é melhor que o placeholder que ele traria. Rodar de novo com
+o mesmo tracker não duplica nada; com outro, acrescenta o bloco novo ao lado.
+
+`--provider clickup` (ou `jira-cloud`, `jira-server`) responde sem perguntar;
+`--provider none` pula a etapa.
+
 ### Dependências
 
 O instalador resolve o `jq` sozinho: baixa o binário oficial da release do
@@ -179,8 +220,30 @@ descobre sozinho. A convenção do pool:
 ├── .env.example      # modelo das credenciais, se houver
 ├── .gitignore        # contendo .env
 ├── .npmignore        # idem: o npm ignora o .gitignore de subdiretório ao empacotar
+├── credentials.json  # opcional: trackers/credenciais que o instalador oferece
 └── scripts/          # *.sh recebem bit de execução na instalação
 ```
+
+O `credentials.json` é o que faz o instalador perguntar pelo tracker sem
+conhecer tracker nenhum — cada ferramenta declara os seus:
+
+```json
+{
+  "pergunta": "Qual tracker você usa para os tickets?",
+  "opcoes": [
+    {
+      "id": "clickup",
+      "label": "ClickUp",
+      "onde": "Settings > Apps > API Token",
+      "vars": { "CLICKUP_TOKEN": "pk_000..." },
+      "opcionais": { "CLICKUP_TEAM_ID": "1234567" }
+    }
+  ]
+}
+```
+
+`vars` entram no `.env` prontas para editar; `opcionais` entram comentadas.
+Ferramenta sem o arquivo simplesmente não gera a pergunta.
 
 O `SKILL.md` carrega a versão da ferramenta:
 

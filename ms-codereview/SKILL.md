@@ -3,7 +3,7 @@ name: ms-codereview
 description: Revisa um pull request de terceiros com critério calibrado para bloquear apenas correção, segurança e dados, e fecha com uma recomendação de aprovar ou rejeitar mais um rascunho de comentário para o PR. Use quando o usuário pedir para revisar um PR, fazer code review, analisar um diff antes de aprovar, ou perguntar se deve aprovar ou rejeitar uma mudança. Aceita número de PR, nome de branch ou range de refs como argumento.
 license: Apache-2.0
 metadata:
-  version: 0.2.0
+  version: 0.3.0
 ---
 
 # Revisão de pull request

@@ -1,6 +1,6 @@
 {
   "name": "ms-ai-tools",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Pool de ferramentas para desenvolvimento agentico, instalaveis como skills do Claude Code",
   "bin": {
     "ms-ai-tools": "bin/cli.js"

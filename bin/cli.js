@@ -8,7 +8,13 @@
 //   npx github:marcelosartor/ms-ai-tools --list
 //
 // Uma ferramenta é qualquer pasta da raiz do pacote que contenha um SKILL.md.
-// A instalação copia a pasta para ~/.claude/skills/ (ou $CLAUDE_SKILLS_DIR).
+// A instalação copia a pasta para o diretório de skills escolhido:
+//
+//   global  ~/.claude/skills      vale em todos os seus projetos
+//   local   ./.claude/skills      só no diretório corrente; pode ser comitado
+//
+// Sem --global/--local, e havendo terminal, o instalador pergunta. Fora de
+// terminal (CI, pipe) nunca pergunta: assume global, para não travar.
 //
 // Credenciais nunca são copiadas do repositório nem tocadas pela atualização:
 // vivem em ~/.config/ms-ai-tools/.env (ou $MS_AI_TOOLS_CONFIG_DIR), fora do
@@ -21,8 +27,13 @@ const crypto = require('node:crypto');
 const { findJq, installJq, which, JQ_VERSION } = require('./deps.js');
 
 const ROOT = path.resolve(__dirname, '..');
-const SKILLS_DIR =
-  process.env.CLAUDE_SKILLS_DIR || path.join(os.homedir(), '.claude', 'skills');
+const GLOBAL_SKILLS = path.join(os.homedir(), '.claude', 'skills');
+const LOCAL_SKILLS = path.join(process.cwd(), '.claude', 'skills');
+
+// Resolvido em runtime (pode vir de flag ou de pergunta); começa no padrão
+// para que --help e --version tenham o que mostrar antes de qualquer escolha.
+let SKILLS_DIR = process.env.CLAUDE_SKILLS_DIR || GLOBAL_SKILLS;
+
 const CONFIG_DIR =
   process.env.MS_AI_TOOLS_CONFIG_DIR ||
   path.join(
@@ -39,6 +50,46 @@ const BACKUP_DIR = path.join(CONFIG_DIR, 'backups');
 // cópia instalada com o pacote novo não separa os dois casos.
 const MANIFEST = '.ms-ai-tools.json';
 const IGNORADOS = new Set(['.env', MANIFEST]);
+
+const interativo = () => process.stdin.isTTY && process.stdout.isTTY;
+
+// Uma única interface para todas as perguntas: abrir uma por pergunta faz a
+// primeira consumir o que já estava no buffer do stdin, e a seguinte recebe
+// EOF. Fechada no fim, em fecharPerguntas().
+let _rl = null;
+function linha() {
+  if (!_rl) {
+    _rl = require('node:readline/promises').createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+  }
+  return _rl;
+}
+function fecharPerguntas() {
+  if (_rl) _rl.close();
+  _rl = null;
+}
+
+async function pergunta(titulo, opcoes) {
+  console.log(`\n${titulo}`);
+  opcoes.forEach((o, i) => {
+    console.log(`  ${i + 1}) ${o.label}${o.nota ? `  — ${o.nota}` : ''}`);
+  });
+  for (;;) {
+    let r;
+    try {
+      r = await linha().question(`Escolha [1-${opcoes.length}] (1): `);
+    } catch {
+      // stdin acabou (Ctrl+D, entrada redirecionada): fica no padrão
+      console.log('\n  (sem resposta — usando a opção 1)');
+      return opcoes[0];
+    }
+    const i = Number(r.trim() || '1');
+    if (Number.isInteger(i) && i >= 1 && i <= opcoes.length) return opcoes[i - 1];
+    console.log('  opção inválida');
+  }
+}
 
 const isDir = (p) => fs.existsSync(p) && fs.statSync(p).isDirectory();
 const isFile = (p) => fs.existsSync(p) && fs.statSync(p).isFile();
@@ -89,9 +140,15 @@ ms-ai-tools v${POOL_VERSION} — instala as ferramentas do pool como skills do C
   npx github:marcelosartor/ms-ai-tools --deps          só instala as dependências
   npx github:marcelosartor/ms-ai-tools --version       versão do pool e de cada ferramenta
 
+Escopo (sem nenhum destes, e havendo terminal, o instalador pergunta)
+  --global     instala em ~/.claude/skills — vale em todos os seus projetos
+  --local      instala em ./.claude/skills — só no diretório corrente
+  --dir <path> instala num diretório específico
+
 Opções
-  --no-deps    não baixa nada; só copia as skills
-  --no-backup  não guarda cópia da instalação anterior antes de substituir
+  --provider <id>  tracker a preparar no .env (ex.: clickup, jira-cloud); "none" pula
+  --no-deps        não baixa nada; só copia as skills
+  --no-backup      não guarda cópia da instalação anterior antes de substituir
 
 Destino das skills   ${SKILLS_DIR}   ($CLAUDE_SKILLS_DIR muda)
 Credenciais          ${CONFIG_ENV}   ($MS_AI_TOOLS_CONFIG_DIR muda)
@@ -122,7 +179,7 @@ function doctor() {
     console.log(`  ${ok ? '✓' : '✗'} ${bin.padEnd(6)} ${para}${extra ? `  — ${extra}` : ''}`);
 
   const faltando = [];
-  console.log('dependências:');
+  console.log('estado das dependências:');
   linha(!!jq, 'jq', 'processar as respostas das APIs', jq && `${jq.source}: ${jq.path}`);
   if (!jq) faltando.push(['jq', 'roda --deps, ou instale pelo sistema (sudo apt install jq)']);
 
@@ -184,6 +241,66 @@ function chmodScripts(dir) {
     if (e.isDirectory()) chmodScripts(p);
     else if (e.name.endsWith('.sh')) fs.chmodSync(p, 0o755);
   }
+}
+
+// Cada ferramenta declara suas credenciais em credentials.json, para o
+// instalador não precisar conhecer os trackers de ninguém.
+function credentialSpec(tool) {
+  const f = path.join(ROOT, tool, 'credentials.json');
+  if (!isFile(f)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(f, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+// Chave comentada conta como já declarada. Sem isso, uma variável opcional
+// que o usuário deixou comentada seria reescrita a cada execução, e o .env
+// acumularia o mesmo bloco repetido.
+function envAtual() {
+  if (!isFile(CONFIG_ENV)) return {};
+  const out = {};
+  for (const l of fs.readFileSync(CONFIG_ENV, 'utf8').split(/\r?\n/)) {
+    const m = /^\s*#?\s*([A-Z0-9_]+)\s*=\s*(.*)$/.exec(l);
+    if (m) out[m[1]] = m[2];
+  }
+  return out;
+}
+
+// Acrescenta ao .env só as chaves que ainda não existem. Valor já preenchido
+// nunca é sobrescrito: o instalador não tem como saber se o que está lá é
+// melhor que o placeholder que ele traria.
+function seedCredentials(opcao) {
+  const existentes = envAtual();
+  const faltando = Object.entries({ ...opcao.vars, ...(opcao.opcionais || {}) }).filter(
+    ([k]) => existentes[k] === undefined
+  );
+
+  if (faltando.length === 0) {
+    console.log(`  ✓ ${opcao.label}: credenciais já presentes em ${CONFIG_ENV}`);
+    return;
+  }
+
+  fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+  const novo = isFile(CONFIG_ENV);
+  const bloco = [
+    '',
+    `# ---------- ${opcao.label} ----------`,
+    ...(opcao.onde ? [`# ${opcao.onde}`] : []),
+    ...Object.entries(opcao.vars)
+      .filter(([k]) => existentes[k] === undefined)
+      .map(([k, v]) => `${k}=${v}`),
+    ...Object.entries(opcao.opcionais || {})
+      .filter(([k]) => existentes[k] === undefined)
+      .map(([k, v]) => `# ${k}=${v}`),
+    '',
+  ].join('\n');
+
+  fs.appendFileSync(CONFIG_ENV, (novo ? '' : '# Credenciais do pool ms-ai-tools.\n') + bloco);
+  fs.chmodSync(CONFIG_ENV, 0o600);
+  console.log(`  ✓ ${opcao.label}: ${faltando.length} variável(is) escritas em ${CONFIG_ENV}`);
+  console.log(`      edite o arquivo e substitua os valores de exemplo${opcao.onde ? ` (${opcao.onde})` : ''}`);
 }
 
 function hashes(dir, base = dir, out = new Map()) {
@@ -314,14 +431,61 @@ function installOne(tool, comBackup) {
   return true;
 }
 
+async function escolherDestino(opts) {
+  if (opts.dir) return path.resolve(opts.dir);
+  if (opts.local) return LOCAL_SKILLS;
+  if (opts.global) return GLOBAL_SKILLS;
+  if (process.env.CLAUDE_SKILLS_DIR) return process.env.CLAUDE_SKILLS_DIR;
+  if (!interativo()) return GLOBAL_SKILLS;
+
+  const r = await pergunta('Onde instalar?', [
+    { label: `Global — ${GLOBAL_SKILLS}`, nota: 'vale em todos os seus projetos', dir: GLOBAL_SKILLS },
+    { label: `Local  — ${LOCAL_SKILLS}`, nota: 'só neste diretório; pode ser comitado', dir: LOCAL_SKILLS },
+  ]);
+  return r.dir;
+}
+
+// Uma skill pessoal com o mesmo nome vence a de projeto, então instalar local
+// tendo a global é trabalho perdido se ninguém avisar.
+function avisarSombra(tools) {
+  if (SKILLS_DIR === GLOBAL_SKILLS) return;
+  const sombreadas = tools.filter((t) => isDir(path.join(GLOBAL_SKILLS, t)));
+  if (sombreadas.length === 0) return;
+  console.log(`\n  ! ${sombreadas.join(', ')} também está instalada em ${GLOBAL_SKILLS}.`);
+  console.log('    A skill pessoal vence a de projeto — remova a global para esta valer.');
+}
+
+async function escolherProvider(tools, escolhido) {
+  const specs = tools.map((t) => [t, credentialSpec(t)]).filter(([, c]) => c && c.opcoes?.length);
+  if (specs.length === 0) return true;
+
+  for (const [tool, spec] of specs) {
+    let opcao;
+    if (escolhido) {
+      if (escolhido === 'none') return true;
+      opcao = spec.opcoes.find((o) => o.id === escolhido);
+      if (!opcao) {
+        console.error(
+          `  ✗ tracker desconhecido para ${tool}: ${escolhido} (use: ${spec.opcoes.map((o) => o.id).join(', ')})`
+        );
+        return false;
+      }
+    } else if (interativo()) {
+      const r = await pergunta(spec.pergunta || `Credenciais de ${tool}:`, [
+        ...spec.opcoes.map((o) => ({ label: o.label, nota: o.onde, opcao: o })),
+        { label: 'Configuro depois', opcao: null },
+      ]);
+      opcao = r.opcao;
+    }
+    if (opcao) seedCredentials(opcao);
+  }
+  return true;
+}
+
 async function install(tools, comDeps, comBackup) {
   console.log(`ms-ai-tools v${POOL_VERSION} — instalando em ${SKILLS_DIR}:`);
   let ok = true;
   for (const t of tools) ok = installOne(t, comBackup) && ok;
-
-  const semCredencial =
-    !isFile(CONFIG_ENV) &&
-    tools.some((t) => isFile(path.join(ROOT, t, '.env.example')));
 
   console.log('\ndependências:');
   if (comDeps) {
@@ -331,18 +495,7 @@ async function install(tools, comDeps, comBackup) {
   }
 
   console.log();
-  if (semCredencial) {
-    console.log('configure as credenciais:');
-    console.log(`  mkdir -p ${CONFIG_DIR}`);
-    for (const t of tools) {
-      const ex = path.join(SKILLS_DIR, t, '.env.example');
-      if (isFile(ex)) console.log(`  cp ${ex} ${CONFIG_ENV}`);
-    }
-    console.log(`  # edite ${CONFIG_ENV}`);
-    console.log();
-  }
   doctor();
-  console.log('\nverifique com /skills numa sessão do Claude Code.');
   return ok;
 }
 
@@ -364,7 +517,25 @@ async function main() {
 
   const comDeps = !args.includes('--no-deps');
   const comBackup = !args.includes('--no-backup');
-  const rest = args.filter((a) => a !== '--no-deps' && a !== '--no-backup');
+  const opts = { global: args.includes('--global'), local: args.includes('--local') };
+
+  const rest = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--no-deps' || a === '--no-backup' || a === '--global' || a === '--local') continue;
+    if (a === '--dir') { opts.dir = args[++i]; continue; }
+    if (a === '--provider') { opts.provider = args[++i]; continue; }
+    rest.push(a);
+  }
+
+  if (opts.global && opts.local) {
+    console.error('--global e --local se excluem');
+    return process.exit(2);
+  }
+  if (opts.dir === undefined && args.includes('--dir')) {
+    console.error('--dir precisa de um caminho');
+    return process.exit(2);
+  }
 
   const unknownFlag = rest.find((a) => a.startsWith('-'));
   if (unknownFlag) {
@@ -378,7 +549,13 @@ async function main() {
     console.error(`nenhuma ferramenta encontrada em ${ROOT}`);
     return process.exit(1);
   }
-  process.exit((await install(tools, comDeps, comBackup)) ? 0 : 1);
+  SKILLS_DIR = await escolherDestino(opts);
+  let ok = await install(tools, comDeps, comBackup);
+  avisarSombra(tools);
+  ok = (await escolherProvider(tools, opts.provider)) && ok;
+  fecharPerguntas();
+  console.log('\nverifique com /skills numa sessão do Claude Code.');
+  process.exit(ok ? 0 : 1);
 }
 
 main().catch((err) => {

@@ -1,4 +1,4 @@
-# ms-codereview v0.2.0
+# ms-codereview v0.3.0
 
 Revisão de pull request de terceiros para o Claude Code: cruza o ticket, a
 descrição do PR e o diff, e fecha com um veredito e um rascunho de
@@ -35,6 +35,14 @@ revisado e do ticket, nunca de regra embutida aqui.
 
 ```bash
 npx github:marcelosartor/ms-ai-tools ms-codereview
+```
+
+Ele pergunta onde instalar (global, em `~/.claude/skills/`, ou local, em
+`./.claude/skills/` do diretório corrente) e qual tracker você usa, para já
+preparar o `.env`. Para responder sem prompt:
+
+```bash
+npx github:marcelosartor/ms-ai-tools ms-codereview --local --provider jira-cloud
 ```
 
 Quem clonou o repositório usa `./install.sh ms-codereview`, que chama o mesmo
@@ -106,6 +114,9 @@ você pedir uma revisão em linguagem natural.
 
 A skill busca o ticket quando a descrição do PR não deixa claro o que a
 mudança deveria fazer. Configure só o tracker que você usa:
+
+O instalador já escreve o bloco do tracker que você escolher. Para fazer à
+mão, ou acrescentar um segundo tracker:
 
 ```bash
 mkdir -p ~/.config/ms-ai-tools
