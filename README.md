@@ -17,6 +17,7 @@ npx github:marcelosartor/ms-ai-tools                 # instala todas as ferramen
 npx github:marcelosartor/ms-ai-tools ms-codereview   # instala só as indicadas
 npx github:marcelosartor/ms-ai-tools --list          # o que existe e o que já está instalado
 npx github:marcelosartor/ms-ai-tools --doctor        # confere as dependências
+npx github:marcelosartor/ms-ai-tools --deps          # só instala as dependências
 ```
 
 Roda direto do repositório, então cada execução traz a versão mais recente.
@@ -25,9 +26,21 @@ Requer Node >= 18.
 Quem clonou usa o mesmo instalador pelo atalho `./install.sh <mesmos
 argumentos>`.
 
-Ao final, o instalador confere as dependências das ferramentas (`jq`, `curl`,
-`gh`) e diz o que falta — instalar a skill sem elas funciona, mas a primeira
-execução falharia sem aviso.
+### Dependências
+
+O instalador resolve o `jq` sozinho: baixa o binário oficial da release do
+[jqlang/jq](https://github.com/jqlang/jq), **confere o sha256 contra o hash
+fixado no repositório** e grava em `~/.config/ms-ai-tools/bin/`. Hash que não
+bate é erro, não aviso — binário não verificado não chega ao disco. As
+ferramentas põem esse diretório na frente do `PATH`, então nada precisa ser
+configurado.
+
+Se você já tem `jq` no sistema, ele é usado e nada é baixado. `--no-deps`
+pula a etapa; `--deps` faz só ela.
+
+`curl` e `gh` ficam a cargo do sistema — um já vem em toda parte, o outro
+precisa de `gh auth login` de qualquer forma. O instalador termina reportando
+o estado dos três.
 
 Confira com `/skills` numa sessão do Claude Code.
 
@@ -37,6 +50,7 @@ Confira com `/skills` numa sessão do Claude Code.
 |---|---|---|
 | Skills | `~/.claude/skills/<ferramenta>/` | `CLAUDE_SKILLS_DIR` |
 | Credenciais | `~/.config/ms-ai-tools/.env` | `MS_AI_TOOLS_CONFIG_DIR` |
+| Dependências (`jq`) | `~/.config/ms-ai-tools/bin/` | `MS_AI_TOOLS_CONFIG_DIR` |
 
 As credenciais moram **fora** da pasta da skill de propósito: a instalação
 substitui o diretório da ferramenta inteiro, então um `.env` lá dentro se

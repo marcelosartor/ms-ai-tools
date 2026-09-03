@@ -59,16 +59,25 @@ Estrutura final:
     └── frontend-vue.md
 
 ~/.config/ms-ai-tools/
-└── .env                        # suas credenciais, fora da skill
+├── .env                        # suas credenciais, fora da skill
+└── bin/jq                      # dependência baixada pelo instalador
 ```
 
 ### Dependências
 
-| Requisito | Para quê | Instalar |
+| Requisito | Para quê | Como |
 |---|---|---|
-| `jq` | processar as respostas das APIs | `sudo apt install jq` (ou `brew install jq`) |
+| `jq` | processar as respostas das APIs (do PR, do ClickUp e do Jira) | **o instalador resolve** — baixa o binário oficial com sha256 conferido |
 | `curl` | falar com o tracker | já vem na maioria dos sistemas |
 | `gh` autenticado | ler o PR do GitHub | `gh auth login` |
+
+O `jq` é um processador de JSON de linha de comando — nada a ver com Jira,
+apesar do nome parecido. É necessário mesmo sem tracker nenhum, porque o
+próprio PR chega do `gh` como JSON.
+
+Se faltar, `npx github:marcelosartor/ms-ai-tools --deps` baixa a versão
+verificada para `~/.config/ms-ai-tools/bin/`, que a skill põe na frente do
+`PATH`. Um `jq` já instalado no sistema é usado como está.
 
 Sem `gh`, a skill ainda revisa um range de refs (`main...HEAD`); só não lê o
 PR.
@@ -170,7 +179,7 @@ onde o `temp/` é criado.
 | Código | Significado | O que fazer |
 |---|---|---|
 | `0` | contexto obtido | — |
-| `2` | erro de uso, ou `jq`/`curl` ausente | ver `--help` e as dependências |
+| `2` | erro de uso, ou `jq`/`curl` ausente | ver `--help`; para o `jq`, rodar o instalador com `--deps` |
 | `3` | id do ticket não encontrado | rodar de novo com `--task <id>` |
 | `4` | credencial do tracker ausente | preencher o `.env` |
 | `5` | o tracker recusou ou não devolveu o ticket | conferir o id, o token e o `reason` em `context-status.json` |

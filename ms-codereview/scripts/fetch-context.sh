@@ -26,6 +26,13 @@ set -euo pipefail
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BASE_DIR="${CR_BASE_DIR:-$PWD}"
 
+# Diretório do pool: guarda as credenciais e as dependências que o instalador
+# baixou (hoje o jq). Entra na frente do PATH para que o binário verificado
+# pelo instalador seja o usado.
+CONFIG_DIR="${MS_AI_TOOLS_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/ms-ai-tools}"
+CRED_FILE="$CONFIG_DIR/.env"
+if [ -d "$CONFIG_DIR/bin" ]; then PATH="$CONFIG_DIR/bin:$PATH"; fi
+
 usage() {
   sed -n '3,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
@@ -47,7 +54,10 @@ done
 
 for bin in jq curl; do
   command -v "$bin" >/dev/null 2>&1 || {
-    echo "'$bin' não encontrado no PATH; instale antes de rodar a skill" >&2; exit 2; }
+    echo "'$bin' não encontrado no PATH." >&2
+    echo "  npx github:marcelosartor/ms-ai-tools --deps   # baixa o jq verificado" >&2
+    echo "  ou instale pelo sistema (ex.: sudo apt install $bin)" >&2
+    exit 2; }
 done
 
 SLUG="$(printf '%s' "$TARGET" | tr -c 'A-Za-z0-9._-' '-' | sed 's/-\{2,\}/-/g; s/^-//; s/-$//')"
@@ -117,9 +127,6 @@ write_status() {
 # Ficam fora do diretório da skill para sobreviver a reinstalação e a
 # atualização automática. O .env local, quando existe, vence o compartilhado:
 # o mais específico ganha.
-CONFIG_DIR="${MS_AI_TOOLS_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/ms-ai-tools}"
-CRED_FILE="$CONFIG_DIR/.env"
-
 for envfile in "$CRED_FILE" "$SKILL_DIR/.env"; do
   [ -f "$envfile" ] || continue
   set -a

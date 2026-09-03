@@ -17,7 +17,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { findJq, installJq, which, JQ_VERSION } = require('./deps.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const SKILLS_DIR =
@@ -29,6 +29,7 @@ const CONFIG_DIR =
     'ms-ai-tools'
   );
 const CONFIG_ENV = path.join(CONFIG_DIR, '.env');
+const BIN_DIR = path.join(CONFIG_DIR, 'bin');
 
 const isDir = (p) => fs.existsSync(p) && fs.statSync(p).isDirectory();
 const isFile = (p) => fs.existsSync(p) && fs.statSync(p).isFile();
@@ -49,9 +50,14 @@ ms-ai-tools — instala as ferramentas do pool como skills do Claude Code
   npx github:marcelosartor/ms-ai-tools <ferramenta>…   instala só as indicadas
   npx github:marcelosartor/ms-ai-tools --list          o que existe e o que já está instalado
   npx github:marcelosartor/ms-ai-tools --doctor        confere as dependências
+  npx github:marcelosartor/ms-ai-tools --deps          só instala as dependências
+
+Opções
+  --no-deps    não baixa nada; só copia as skills
 
 Destino das skills   ${SKILLS_DIR}   ($CLAUDE_SKILLS_DIR muda)
 Credenciais          ${CONFIG_ENV}   ($MS_AI_TOOLS_CONFIG_DIR muda)
+Dependências         ${BIN_DIR}      (idem)
 `.trim());
 }
 
@@ -65,37 +71,50 @@ function list() {
   }
 }
 
-function which(bin) {
-  try {
-    execFileSync(process.platform === 'win32' ? 'where' : 'which', [bin], {
-      stdio: 'ignore',
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 // Reportado, nunca bloqueante: a skill instala mesmo sem as dependências, e
 // avisar aqui é melhor que falhar na primeira revisão.
 function doctor() {
-  const deps = [
-    ['jq', 'processar as respostas das APIs', 'sudo apt install jq  |  brew install jq'],
-    ['curl', 'falar com o tracker', 'sudo apt install curl  |  já vem no macOS'],
-    ['gh', 'ler o PR do GitHub', 'https://cli.github.com — depois: gh auth login'],
-  ];
+  const jq = findJq(BIN_DIR);
+  const linha = (ok, bin, para, extra) =>
+    console.log(`  ${ok ? '✓' : '✗'} ${bin.padEnd(6)} ${para}${extra ? `  — ${extra}` : ''}`);
+
   const faltando = [];
   console.log('dependências:');
-  for (const [bin, para, como] of deps) {
-    const ok = which(bin);
-    if (!ok) faltando.push([bin, como]);
-    console.log(`  ${ok ? '✓' : '✗'} ${bin.padEnd(6)} ${para}`);
+  linha(!!jq, 'jq', 'processar as respostas das APIs', jq && `${jq.source}: ${jq.path}`);
+  if (!jq) faltando.push(['jq', 'roda --deps, ou instale pelo sistema (sudo apt install jq)']);
+
+  for (const [bin, para, como] of [
+    ['curl', 'falar com o tracker', 'sudo apt install curl  |  já vem no macOS'],
+    ['gh', 'ler o PR do GitHub', 'https://cli.github.com — depois: gh auth login'],
+  ]) {
+    const achado = which(bin);
+    linha(!!achado, bin, para, achado);
+    if (!achado) faltando.push([bin, como]);
   }
+
   if (faltando.length) {
     console.log('\nfaltando:');
     for (const [bin, como] of faltando) console.log(`  ${bin}: ${como}`);
   }
   return faltando.length === 0;
+}
+
+// O jq é a única dependência que dá para resolver aqui: binário estático,
+// release oficial, sha256 fixado. curl e gh ficam a cargo do sistema — um já
+// vem em toda parte, o outro precisa de login de qualquer forma.
+async function ensureDeps() {
+  const jq = findJq(BIN_DIR);
+  if (jq) {
+    console.log(`  ✓ jq já disponível (${jq.source}: ${jq.path})`);
+    return true;
+  }
+  try {
+    await installJq(BIN_DIR);
+    return true;
+  } catch (err) {
+    console.error(`  ✗ jq: ${err.message}`);
+    return false;
+  }
 }
 
 // A instalação substitui o diretório da skill inteiro, então um .env que
@@ -154,7 +173,7 @@ function installOne(tool) {
   return true;
 }
 
-function install(tools) {
+async function install(tools, comDeps) {
   console.log(`instalando em ${SKILLS_DIR}:`);
   let ok = true;
   for (const t of tools) ok = installOne(t) && ok;
@@ -162,6 +181,13 @@ function install(tools) {
   const semCredencial =
     !isFile(CONFIG_ENV) &&
     tools.some((t) => isFile(path.join(ROOT, t, '.env.example')));
+
+  console.log('\ndependências:');
+  if (comDeps) {
+    ok = (await ensureDeps()) && ok;
+  } else {
+    console.log('  (--no-deps: nada foi baixado)');
+  }
 
   console.log();
   if (semCredencial) {
@@ -179,26 +205,36 @@ function install(tools) {
   return ok;
 }
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
 
   if (args.includes('-h') || args.includes('--help')) return usage();
   if (args.includes('-l') || args.includes('--list')) return list();
   if (args.includes('--doctor')) return process.exit(doctor() ? 0 : 1);
+  if (args.includes('--deps')) {
+    console.log('dependências:');
+    return process.exit((await ensureDeps()) ? 0 : 1);
+  }
 
-  const unknownFlag = args.find((a) => a.startsWith('-'));
+  const comDeps = !args.includes('--no-deps');
+  const rest = args.filter((a) => a !== '--no-deps');
+
+  const unknownFlag = rest.find((a) => a.startsWith('-'));
   if (unknownFlag) {
     console.error(`opção desconhecida: ${unknownFlag}\n`);
     usage();
     return process.exit(2);
   }
 
-  const tools = args.length ? args : discover();
+  const tools = rest.length ? rest : discover();
   if (tools.length === 0) {
     console.error(`nenhuma ferramenta encontrada em ${ROOT}`);
     return process.exit(1);
   }
-  process.exit(install(tools) ? 0 : 1);
+  process.exit((await install(tools, comDeps)) ? 0 : 1);
 }
 
-main();
+main().catch((err) => {
+  console.error(err.message);
+  process.exit(1);
+});
