@@ -44,6 +44,40 @@ o estado dos três.
 
 Confira com `/skills` numa sessão do Claude Code.
 
+### Versões
+
+O pool e cada ferramenta têm versão própria, em [semver](https://semver.org):
+
+```bash
+npx github:marcelosartor/ms-ai-tools --version
+# ms-ai-tools 0.1.0
+#   ms-codereview        v0.1.0
+```
+
+A versão do pool vive em `package.json`; a de cada ferramenta, em
+`metadata.version` no `SKILL.md` dela. O frontmatter de skill não tem campo
+`version` — chave desconhecida é erro nos caminhos de distribuição da
+claude.ai e da API —, e `metadata` é o mapa livre que a especificação reserva
+para dado de catálogo como este.
+
+O instalador lê as duas pontas e mostra a transição:
+
+```
+$ npx github:marcelosartor/ms-ai-tools --list
+  ms-codereview        v0.2.0       instalada v0.1.0 → atualiza para v0.2.0
+
+$ npx github:marcelosartor/ms-ai-tools
+  ✓ ms-codereview        v0.1.0 → v0.2.0
+```
+
+Cada versão do pool vira uma tag git, então dá para fixar uma:
+
+```bash
+npx github:marcelosartor/ms-ai-tools#v0.1.0
+```
+
+Sem tag, o npx sempre traz o topo da `main`.
+
 ### Onde as coisas ficam
 
 | O quê | Onde | Muda com |
@@ -106,6 +140,21 @@ descobre sozinho. A convenção do pool:
 ├── .npmignore        # idem: o npm ignora o .gitignore de subdiretório ao empacotar
 └── scripts/          # *.sh recebem bit de execução na instalação
 ```
+
+O `SKILL.md` carrega a versão da ferramenta:
+
+```yaml
+---
+name: minha-ferramenta
+description: …
+license: Apache-2.0
+metadata:
+  version: 0.1.0
+---
+```
+
+Ferramenta sem `metadata.version` continua instalando — o instalador a mostra
+como "sem versão".
 
 O `.npmignore` não é decorativo: ao empacotar, o npm usa o `.gitignore` de um
 diretório só quando não há `.npmignore` nele — e avisa. Sem os dois, um `.env`

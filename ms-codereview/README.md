@@ -1,10 +1,12 @@
-# ms-codereview
+# ms-codereview v0.1.0
 
 Revisão de pull request de terceiros para o Claude Code: cruza o ticket, a
 descrição do PR e o diff, e fecha com um veredito e um rascunho de
 comentário pronto para colar.
 
-Faz parte do pool [ms-ai-tools](../README.md).
+Faz parte do pool [ms-ai-tools](../README.md). A versão da skill fica em
+`metadata.version` no `SKILL.md`, e o instalador mostra a transição ao
+atualizar.
 
 A skill parte de um revisor externo — alguém que não escreveu o código e
 muitas vezes não conhece o projeto a fundo. Por isso ela exige saber o que o

@@ -34,6 +34,33 @@ const BIN_DIR = path.join(CONFIG_DIR, 'bin');
 const isDir = (p) => fs.existsSync(p) && fs.statSync(p).isDirectory();
 const isFile = (p) => fs.existsSync(p) && fs.statSync(p).isFile();
 
+const POOL_VERSION = require('../package.json').version;
+
+// A versão de uma skill vive em metadata.version do SKILL.md. O frontmatter
+// não tem campo `version` — chave desconhecida é erro nos caminhos de
+// distribuição da claude.ai e da API —, e `metadata` é o mapa livre que a
+// especificação reserva justamente para dado de catálogo como este.
+//
+// Parser deliberadamente pequeno: só o que basta para achar metadata.version,
+// para o instalador não carregar uma dependência de YAML.
+function skillVersion(skillMd) {
+  if (!isFile(skillMd)) return null;
+  const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(fs.readFileSync(skillMd, 'utf8'));
+  if (!fm) return null;
+  const linhas = fm[1].split(/\r?\n/);
+  const i = linhas.findIndex((l) => /^metadata:\s*$/.test(l));
+  if (i === -1) return null;
+  for (const l of linhas.slice(i + 1)) {
+    if (/^\S/.test(l)) break; // saiu do bloco indentado
+    const m = /^\s+version:\s*["']?([^"'\s]+)["']?\s*$/.exec(l);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+const versionOf = (dir) => skillVersion(path.join(dir, 'SKILL.md'));
+const rotulo = (v) => (v ? `v${v}` : 'sem versão');
+
 function discover() {
   return fs
     .readdirSync(ROOT, { withFileTypes: true })
@@ -44,13 +71,14 @@ function discover() {
 
 function usage() {
   console.log(`
-ms-ai-tools — instala as ferramentas do pool como skills do Claude Code
+ms-ai-tools v${POOL_VERSION} — instala as ferramentas do pool como skills do Claude Code
 
   npx github:marcelosartor/ms-ai-tools                 instala todas
   npx github:marcelosartor/ms-ai-tools <ferramenta>…   instala só as indicadas
   npx github:marcelosartor/ms-ai-tools --list          o que existe e o que já está instalado
   npx github:marcelosartor/ms-ai-tools --doctor        confere as dependências
   npx github:marcelosartor/ms-ai-tools --deps          só instala as dependências
+  npx github:marcelosartor/ms-ai-tools --version       versão do pool e de cada ferramenta
 
 Opções
   --no-deps    não baixa nada; só copia as skills
@@ -64,10 +92,15 @@ Dependências         ${BIN_DIR}      (idem)
 function list() {
   const tools = discover();
   if (tools.length === 0) return console.log(`nenhuma ferramenta encontrada em ${ROOT}`);
-  console.log(`ferramentas do pool (destino: ${SKILLS_DIR}):`);
+  console.log(`ms-ai-tools v${POOL_VERSION} — destino: ${SKILLS_DIR}\n`);
   for (const t of tools) {
-    const state = isDir(path.join(SKILLS_DIR, t)) ? 'instalada' : 'não instalada';
-    console.log(`  ${t.padEnd(20)} ${state}`);
+    const disp = versionOf(path.join(ROOT, t));
+    const inst = isDir(path.join(SKILLS_DIR, t)) ? versionOf(path.join(SKILLS_DIR, t)) : undefined;
+    let estado;
+    if (inst === undefined) estado = 'não instalada';
+    else if (inst === disp) estado = `instalada, ${rotulo(inst)}`;
+    else estado = `instalada ${rotulo(inst)} → atualiza para ${rotulo(disp)}`;
+    console.log(`  ${t.padEnd(20)} ${rotulo(disp).padEnd(12)} ${estado}`);
   }
 }
 
@@ -152,6 +185,7 @@ function installOne(tool) {
     return false;
   }
 
+  const anterior = isDir(dest) ? versionOf(dest) : undefined;
   const rescued = rescueEnv(tool, path.join(dest, '.env'));
 
   fs.mkdirSync(SKILLS_DIR, { recursive: true });
@@ -163,7 +197,12 @@ function installOne(tool) {
   });
   chmodScripts(path.join(dest, 'scripts'));
 
-  console.log(`  ✓ ${tool} → ${dest}`);
+  const de = anterior === undefined ? null : anterior;
+  const para = versionOf(dest);
+  const transicao =
+    de === null ? rotulo(para) : de === para ? `${rotulo(para)} (reinstalada)` : `${rotulo(de)} → ${rotulo(para)}`;
+  console.log(`  ✓ ${tool.padEnd(20)} ${transicao}`);
+  console.log(`      ${dest}`);
   if (rescued === CONFIG_ENV) {
     console.log(`      credenciais movidas da skill para ${rescued}`);
   } else if (rescued) {
@@ -174,7 +213,7 @@ function installOne(tool) {
 }
 
 async function install(tools, comDeps) {
-  console.log(`instalando em ${SKILLS_DIR}:`);
+  console.log(`ms-ai-tools v${POOL_VERSION} — instalando em ${SKILLS_DIR}:`);
   let ok = true;
   for (const t of tools) ok = installOne(t) && ok;
 
@@ -210,6 +249,11 @@ async function main() {
 
   if (args.includes('-h') || args.includes('--help')) return usage();
   if (args.includes('-l') || args.includes('--list')) return list();
+  if (args.includes('-v') || args.includes('--version')) {
+    console.log(`ms-ai-tools ${POOL_VERSION}`);
+    for (const t of discover()) console.log(`  ${t.padEnd(20)} ${rotulo(versionOf(path.join(ROOT, t)))}`);
+    return;
+  }
   if (args.includes('--doctor')) return process.exit(doctor() ? 0 : 1);
   if (args.includes('--deps')) {
     console.log('dependências:');
