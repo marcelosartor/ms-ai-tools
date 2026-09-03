@@ -38,7 +38,7 @@ jira_id_matches() {
 
 jira_credentials() {
   if [ -z "${JIRA_BASE_URL:-}" ]; then
-    REASON="JIRA_BASE_URL ausente; crie $SKILL_DIR/.env a partir do .env.example"
+    REASON="JIRA_BASE_URL ausente; crie $CRED_FILE a partir do .env.example da skill"
     return 1
   fi
   JIRA_BASE_URL="${JIRA_BASE_URL%/}"
@@ -48,7 +48,7 @@ jira_credentials() {
   elif [ -n "${JIRA_TOKEN:-}" ]; then
     AUTH_HEADER="Bearer $JIRA_TOKEN"
   else
-    REASON="credencial do Jira ausente; defina JIRA_EMAIL + JIRA_API_TOKEN (Cloud) ou JIRA_TOKEN (Server/DC) em $SKILL_DIR/.env"
+    REASON="credencial do Jira ausente; defina JIRA_EMAIL + JIRA_API_TOKEN (Cloud) ou JIRA_TOKEN (Server/DC) em $CRED_FILE"
     return 1
   fi
 

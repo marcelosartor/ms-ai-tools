@@ -1,0 +1,30 @@
+{
+  "name": "ms-ai-tools",
+  "version": "0.1.0",
+  "description": "Pool de ferramentas para desenvolvimento agentico, instalaveis como skills do Claude Code",
+  "bin": {
+    "ms-ai-tools": "bin/cli.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "Apache-2.0",
+  "author": "Marcelo Sartor",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marcelosartor/ms-ai-tools.git"
+  },
+  "homepage": "https://github.com/marcelosartor/ms-ai-tools#readme",
+  "bugs": {
+    "url": "https://github.com/marcelosartor/ms-ai-tools/issues"
+  },
+  "keywords": [
+    "claude-code",
+    "claude",
+    "skills",
+    "agentic",
+    "code-review",
+    "clickup",
+    "jira"
+  ]
+}

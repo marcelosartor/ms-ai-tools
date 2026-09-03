@@ -31,17 +31,15 @@ revisado e do ticket, nunca de regra embutida aqui.
 
 ## Instalação
 
-Pelo instalador do pool, na raiz do repositório:
-
 ```bash
-./install.sh ms-codereview     # ou ./install.sh para instalar tudo
+npx github:marcelosartor/ms-ai-tools ms-codereview
 ```
 
-Ou manualmente:
+Quem clonou o repositório usa `./install.sh ms-codereview`, que chama o mesmo
+instalador. Manualmente também funciona:
 
 ```bash
-mkdir -p ~/.claude/skills
-cp -r ms-codereview ~/.claude/skills/
+mkdir -p ~/.claude/skills && cp -r ms-codereview ~/.claude/skills/
 ```
 
 Estrutura final:
@@ -50,7 +48,6 @@ Estrutura final:
 ~/.claude/skills/ms-codereview/
 ├── SKILL.md                    # o procedimento de revisão; carrega inteiro
 ├── README.md
-├── .env                        # suas credenciais (não versionar)
 ├── .env.example
 ├── scripts/
 │   ├── fetch-context.sh        # coleta PR + ticket
@@ -60,6 +57,9 @@ Estrutura final:
 └── checklists/                 # carregam só se o diff tocar na camada
     ├── backend-node-nest.md
     └── frontend-vue.md
+
+~/.config/ms-ai-tools/
+└── .env                        # suas credenciais, fora da skill
 ```
 
 ### Dependências
@@ -97,9 +97,15 @@ A skill busca o ticket quando a descrição do PR não deixa claro o que a
 mudança deveria fazer. Configure só o tracker que você usa:
 
 ```bash
-cp ~/.claude/skills/ms-codereview/.env.example ~/.claude/skills/ms-codereview/.env
+mkdir -p ~/.config/ms-ai-tools
+cp ~/.claude/skills/ms-codereview/.env.example ~/.config/ms-ai-tools/.env
 # edite e preencha o bloco do seu tracker
 ```
+
+As credenciais ficam fora da pasta da skill porque a instalação substitui o
+diretório inteiro — um `.env` lá dentro se perderia na atualização.
+`MS_AI_TOOLS_CONFIG_DIR` muda o local. Um `.env` na raiz da skill continua
+sendo lido e **vence** o compartilhado, para sobrepor um valor pontualmente.
 
 | Tracker | Variáveis | Onde pegar |
 |---|---|---|
@@ -108,8 +114,8 @@ cp ~/.claude/skills/ms-codereview/.env.example ~/.claude/skills/ms-codereview/.e
 | Jira Cloud | `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` | id.atlassian.com/manage-profile/security/api-tokens |
 | Jira Server / Data Center | `JIRA_BASE_URL`, `JIRA_TOKEN` (PAT) | Perfil > Personal Access Tokens |
 
-O `.env` nunca é versionado, nunca é impresso no relatório e nunca passa pela
-linha de comando — as credenciais vão para o `curl` por stdin, então não
+O `.env` nunca é versionado, nunca entra no pacote npm, nunca é impresso no
+relatório e nunca passa pela linha de comando — as credenciais vão para o `curl` por stdin, então não
 aparecem em `ps`.
 
 Sem credencial a skill ainda revisa PRs cuja descrição já explica o esperado

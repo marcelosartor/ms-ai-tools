@@ -113,12 +113,20 @@ write_status() {
 
 # ---------- 1. credenciais ----------
 # Carregadas antes de tudo: o .env é quem diz qual tracker está configurado.
-if [ -f "$SKILL_DIR/.env" ]; then
+#
+# Ficam fora do diretório da skill para sobreviver a reinstalação e a
+# atualização automática. O .env local, quando existe, vence o compartilhado:
+# o mais específico ganha.
+CONFIG_DIR="${MS_AI_TOOLS_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/ms-ai-tools}"
+CRED_FILE="$CONFIG_DIR/.env"
+
+for envfile in "$CRED_FILE" "$SKILL_DIR/.env"; do
+  [ -f "$envfile" ] || continue
   set -a
   # shellcheck disable=SC1091
-  . "$SKILL_DIR/.env"
+  . "$envfile"
   set +a
-fi
+done
 
 # GET autenticado sem passar credencial por argv: a config vai por stdin,
 # que não aparece em `ps`. AUTH_HEADER é definido pelo provider.

@@ -43,7 +43,7 @@ clickup_credentials() {
   # com .env antigos, que guardavam o token do ClickUp em TOKEN.
   local token="${CLICKUP_TOKEN:-${CLICKUP_API_TOKEN:-${TOKEN:-}}}"
   if [ -z "$token" ]; then
-    REASON="CLICKUP_TOKEN ausente; crie $SKILL_DIR/.env a partir do .env.example"
+    REASON="CLICKUP_TOKEN ausente; crie $CRED_FILE a partir do .env.example da skill"
     return 1
   fi
   AUTH_HEADER="$token"

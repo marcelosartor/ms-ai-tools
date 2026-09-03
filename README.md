@@ -10,18 +10,43 @@ ticket, nunca de regra embutida na skill.
 
 ## Instalação
 
+Sem clonar nada:
+
 ```bash
-git clone <este-repo> && cd ms-ai-tools
-./install.sh                  # instala todas as ferramentas
-./install.sh ms-codereview    # instala só as indicadas
-./install.sh --list           # o que existe e o que já está instalado
+npx github:marcelosartor/ms-ai-tools                 # instala todas as ferramentas
+npx github:marcelosartor/ms-ai-tools ms-codereview   # instala só as indicadas
+npx github:marcelosartor/ms-ai-tools --list          # o que existe e o que já está instalado
+npx github:marcelosartor/ms-ai-tools --doctor        # confere as dependências
 ```
 
-O destino padrão é `~/.claude/skills/`; `CLAUDE_SKILLS_DIR` muda isso.
-Reinstalar sobrescreve a skill mas **preserva o `.env`** já configurado — as
-credenciais nunca são copiadas do repositório nem apagadas na atualização.
+Roda direto do repositório, então cada execução traz a versão mais recente.
+Requer Node >= 18.
+
+Quem clonou usa o mesmo instalador pelo atalho `./install.sh <mesmos
+argumentos>`.
+
+Ao final, o instalador confere as dependências das ferramentas (`jq`, `curl`,
+`gh`) e diz o que falta — instalar a skill sem elas funciona, mas a primeira
+execução falharia sem aviso.
 
 Confira com `/skills` numa sessão do Claude Code.
+
+### Onde as coisas ficam
+
+| O quê | Onde | Muda com |
+|---|---|---|
+| Skills | `~/.claude/skills/<ferramenta>/` | `CLAUDE_SKILLS_DIR` |
+| Credenciais | `~/.config/ms-ai-tools/.env` | `MS_AI_TOOLS_CONFIG_DIR` |
+
+As credenciais moram **fora** da pasta da skill de propósito: a instalação
+substitui o diretório da ferramenta inteiro, então um `.env` lá dentro se
+perderia a cada atualização. Um `.env` local ainda é lido, e vence o
+compartilhado — útil para sobrepor um valor pontualmente.
+
+Se você já tinha um `.env` dentro de uma skill, o instalador o resgata antes
+de substituir o diretório: vira o `~/.config/ms-ai-tools/.env` se ainda não
+houver um, ou é guardado ao lado como `.env.da-skill-<ferramenta>` se houver.
+Credencial existente nunca é sobrescrita nem descartada.
 
 ## Ferramentas
 
@@ -49,6 +74,10 @@ camada.
 Requer `jq`, `curl` e `gh` autenticado.
 → **[Instalação, configuração dos trackers e manutenção](ms-codereview/README.md)**
 
+```bash
+npx github:marcelosartor/ms-ai-tools ms-codereview
+```
+
 ## Adicionar uma ferramenta
 
 Uma pasta na raiz com um `SKILL.md` já é uma ferramenta — o `install.sh`
@@ -63,6 +92,7 @@ descobre sozinho. A convenção do pool:
 └── scripts/          # *.sh recebem bit de execução na instalação
 ```
 
+O instalador descobre a pasta sozinha — nada a registrar em `package.json`.
 Depois acrescente a ferramenta à tabela acima, com uma seção própria e link
 para o `README.md` dela.
 
