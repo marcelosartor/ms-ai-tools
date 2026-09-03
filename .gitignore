@@ -1,0 +1,5 @@
+# credenciais de qualquer ferramenta, em qualquer nível
+# (padrão sem barra casa em todos os subdiretórios)
+.env
+.env.*
+!.env.example
