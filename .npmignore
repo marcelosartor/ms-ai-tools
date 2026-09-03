@@ -1,0 +1,9 @@
+# O npm usa este arquivo no lugar do .gitignore ao empacotar. Precisa repetir
+# as exclusões de credencial: sem elas, um .env local iria para o pacote.
+.env
+.env.*
+!.env.example
+
+node_modules/
+*.tgz
+temp/

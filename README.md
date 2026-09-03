@@ -89,8 +89,13 @@ descobre sozinho. A convenção do pool:
 ├── README.md         # instalação, configuração e manutenção
 ├── .env.example      # modelo das credenciais, se houver
 ├── .gitignore        # contendo .env
+├── .npmignore        # idem: o npm ignora o .gitignore de subdiretório ao empacotar
 └── scripts/          # *.sh recebem bit de execução na instalação
 ```
+
+O `.npmignore` não é decorativo: ao empacotar, o npm usa o `.gitignore` de um
+diretório só quando não há `.npmignore` nele — e avisa. Sem os dois, um `.env`
+local acabaria dentro do pacote publicado.
 
 O instalador descobre a pasta sozinha — nada a registrar em `package.json`.
 Depois acrescente a ferramenta à tabela acima, com uma seção própria e link
