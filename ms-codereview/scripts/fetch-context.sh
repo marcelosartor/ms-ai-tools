@@ -121,6 +121,26 @@ PROVIDER=""
 REASON=""
 MECHANICAL=false
 MECHANICAL_KIND=""
+DIFF_BASE_SHA=""
+DIFF_HEAD_SHA=""
+
+# ---------- revisão anterior (F3: re-review incremental) ----------
+# Report de rodada anterior vive em temp/cr/<alvo>/ (irmão de raw/, não
+# dentro), nomeado report-<sha7>.md. Calculado cedo — não depende de PR
+# nem de ticket — para entrar em toda escrita de status.
+REPORT_DIR="$BASE_DIR/temp/cr/$SLUG"
+PREVIOUS_REPORT=""
+PREVIOUS_SHA=""
+for rf in "$REPORT_DIR"/report-*.md; do
+  [ -e "$rf" ] || continue
+  if [ -z "$PREVIOUS_REPORT" ] || [ "$rf" -nt "$PREVIOUS_REPORT" ]; then
+    PREVIOUS_REPORT="$rf"
+  fi
+done
+if [ -n "$PREVIOUS_REPORT" ]; then
+  PREVIOUS_SHA="$(basename "$PREVIOUS_REPORT" .md)"
+  PREVIOUS_SHA="${PREVIOUS_SHA#report-}"
+fi
 
 write_status() {
   jq -n \
@@ -134,16 +154,24 @@ write_status() {
     --argjson task_ok "$TASK_OK" \
     --argjson mechanical "$MECHANICAL" \
     --arg mechanical_kind "$MECHANICAL_KIND" \
+    --arg base_sha "$DIFF_BASE_SHA" \
+    --arg head_sha "$DIFF_HEAD_SHA" \
+    --arg previous_report "$PREVIOUS_REPORT" \
+    --arg previous_sha "$PREVIOUS_SHA" \
     '{target:$target, raw_dir:$raw, pr_fetched:$pr_ok,
       provider:(if $provider=="" then null else $provider end),
       task_id:(if $task_id=="" then null else $task_id end),
       task_fetched:$task_ok,
       mechanical:$mechanical,
       mechanical_kind:(if $mechanical_kind=="" then null else $mechanical_kind end),
+      base_sha:(if $base_sha=="" then null else $base_sha end),
+      head_sha:(if $head_sha=="" then null else $head_sha end),
+      previous_report:(if $previous_report=="" then null else $previous_report end),
+      previous_sha:(if $previous_sha=="" then null else $previous_sha end),
       reason:(if $reason=="" then null else $reason end), generated_at:$generated_at}' \
     > "$STATUS_FILE"
   echo "contexto em: $RAW"
-  jq -r '"  pr_fetched=\(.pr_fetched)  provider=\(.provider // "-")  task_id=\(.task_id // "-")  task_fetched=\(.task_fetched)  mechanical=\(.mechanical)\(if .mechanical_kind then " ("+.mechanical_kind+")" else "" end)  reason=\(.reason // "-")"' "$STATUS_FILE"
+  jq -r '"  pr_fetched=\(.pr_fetched)  provider=\(.provider // "-")  task_id=\(.task_id // "-")  task_fetched=\(.task_fetched)  mechanical=\(.mechanical)\(if .mechanical_kind then " ("+.mechanical_kind+")" else "" end)  previous_sha=\(.previous_sha // "-")  reason=\(.reason // "-")"' "$STATUS_FILE"
 }
 
 # ---------- 1. credenciais ----------
@@ -209,8 +237,6 @@ split_range() { # $1=alvo -> "base<TAB>head", vazio se não é um range
   esac
 }
 
-DIFF_BASE_SHA=""
-DIFF_HEAD_SHA=""
 if [ "$PR_OK" = true ]; then
   DIFF_BASE_SHA="$(jq -r '.baseRefOid // empty' "$RAW/pr.json")"
   DIFF_HEAD_SHA="$(jq -r '.headRefOid // empty' "$RAW/pr.json")"

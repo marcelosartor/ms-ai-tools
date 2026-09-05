@@ -17,6 +17,12 @@ vira uma tag git (`vX.Y.Z`).
   reduzida por tipo.
 - `ms-codereview/tests/run.sh`: primeiro harness de testes da skill, bash
   puro, com os casos do PR mecânico.
+- `ms-codereview`: re-review incremental — `fetch-context.sh` grava
+  `head_sha`/`base_sha` e detecta `previous_report`/`previous_sha` (o
+  `report-<sha7>.md` mais recente em `temp/cr/<alvo>/`); a skill grava um
+  relatório por rodada e, na próxima, revisa só o delta e classifica cada
+  achado anterior como resolvido, aberto ou novo, em vez de recomeçar do
+  zero.
 - `ms-codereview`: refutador independente — todo `blocker:` que sobrevive
   à segunda passagem vai para um subagent à parte (`prompts/refute.md`),
   que não vê o relatório e tenta derrubar a afirmação. Achado refutado sai

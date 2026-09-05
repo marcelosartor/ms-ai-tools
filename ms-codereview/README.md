@@ -37,6 +37,9 @@ Ferramenta própria — não é adaptada de terceiro.
   cuja única tarefa é tentar derrubar a afirmação. Falso positivo em PR de
   terceiro custa a credibilidade de quem assina.
 - **Não posta nada.** Comentário e review só saem quando você mandar.
+- **Re-review incremental.** Depois de o autor empurrar commits, a
+  próxima rodada revisa só o delta e diz o que foi resolvido, o que
+  continua aberto e o que é novo — não recomeça do zero.
 
 ## Instalação
 
@@ -83,7 +86,8 @@ Estrutura final:
 └── tests/
     ├── run.sh                  # bash ms-codereview/tests/run.sh
     ├── f7.sh                   # casos por feature, carregados pelo run.sh
-    └── f5.sh
+    ├── f5.sh
+    └── f3.sh
 
 ~/.config/ms-ai-tools/
 ├── .env                        # suas credenciais, fora da skill
@@ -213,8 +217,13 @@ Grava em `temp/cr/<pr>/raw/`, dentro do repositório revisado:
 | `pr.json`, `pr-body.md`, `pr-files.tsv`, `pr-comments.md` | o PR |
 | `ticket.md` | o ticket em Markdown — mesmo formato para todo tracker |
 | `ticket.json`, `ticket-comments.json` | resposta crua da API |
-| `context-status.json` | o que deu certo, o tracker usado, se o PR é mecânico e o motivo do que faltou |
+| `context-status.json` | o que deu certo, o tracker usado, se o PR é mecânico, `head_sha`/`base_sha` do diff, `previous_report`/`previous_sha` da rodada anterior (se houver) e o motivo do que faltou |
 | `checklists.json` | quais checklists carregar e por quê — gerado sempre, independente do ticket |
+
+Revisão do mesmo alvo depois de o autor empurrar commits é incremental: a
+skill grava `temp/cr/<alvo>/report-<sha7>.md` a cada rodada, e a próxima
+lê `previous_report`/`previous_sha` em `context-status.json` para revisar
+só o delta e marcar achado anterior como resolvido, aberto ou novo.
 
 PR mecânico (bump de dependência, formatação, rename, doc) dispensa ticket:
 o script classifica sozinho pelo diff (`mechanical`/`mechanical_kind` em
