@@ -108,6 +108,9 @@ entre elas é um achado de natureza diferente.
 5. **Aplicar os checklists.** Carregar apenas o que o diff tocar:
    - Backend Node/NestJS: `checklists/backend-node-nest.md`
    - Frontend Vue/Quasar/Vuetify: `checklists/frontend-vue.md`
+   - Frontend React/Vite/Tailwind/shadcn: `checklists/frontend-react.md`
+   - PostgreSQL/pgvector (migration, schema, query, embedding):
+     `checklists/database-postgres-pgvector.md`
 
 6. **Verificar antes de reportar.** Ver a barra de verificação abaixo.
 

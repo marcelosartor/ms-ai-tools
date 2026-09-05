@@ -222,9 +222,10 @@ vez de inferir a intenção a partir do código. Nada é postado no PR sem você
 pedir.
 
 Busca o ticket no **ClickUp** ou no **Jira** (Cloud e Server/DC), escolhendo
-o tracker pelo formato do id que encontra no PR ou na branch. Traz checklists
-de Node/NestJS e Vue/Quasar/Vuetify, carregados só quando o diff toca a
-camada.
+o tracker pelo formato do id que encontra no PR ou na branch; sem tracker,
+`--spec-file` aponta um documento local como contexto. Traz checklists de
+Node/NestJS, Vue/Quasar/Vuetify, React/Vite/Tailwind/shadcn e
+PostgreSQL/pgvector, carregados só quando o diff toca a camada.
 
 Requer `jq`, `curl` e `gh` autenticado.
 → **[Instalação, configuração dos trackers e manutenção](ms-codereview/README.md)**

@@ -8,5 +8,8 @@ node_modules/
 *.tgz
 temp/
 
+# especificações de desenvolvimento do pool; não são produto instalável
+docs/
+
 # manifesto gerado pelo instalador
 .ms-ai-tools.json

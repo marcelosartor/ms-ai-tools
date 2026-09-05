@@ -6,6 +6,28 @@ Versionamento em [semver](https://semver.org): a versão do pool vive em
 dela — ver a seção "Versões" do [README](README.md). Cada versão do pool
 vira uma tag git (`vX.Y.Z`).
 
+## [Não lançado]
+
+### Adicionado
+
+- `ms-codereview`: `--spec-file <caminho>` no `fetch-context.sh` usa um
+  documento local (PRD, spec, ata) como contexto da revisão, para quem não
+  tem ClickUp nem Jira. Só roda quando passado; sem descoberta automática
+  de arquivo em diretório.
+- `ms-codereview`: checklists `frontend-react.md` (React / Vite / Tailwind
+  / shadcn) e `database-postgres-pgvector.md` (migration, schema, query,
+  pgvector).
+- PRD da 0.6.0 do `ms-codereview` em `docs/prd/ms-codereview-0.6.0.md`.
+
+### Alterado
+
+- `ms-codereview`: provider de tracker sem credencial configurada não é
+  mais tentado na descoberta automática; sem nenhum configurado, o script
+  sai `4` sem procurar id. `--provider` explícito continua sendo tentado.
+
+`ms-codereview` foi a 0.5.0 (commit `5251a80`); o pool ainda está em
+0.4.0 no `package.json` — decidir se acompanha ao fechar esta entrada.
+
 ## [0.4.0] - 2026-09-05
 
 ### Alterado

@@ -71,7 +71,9 @@ Estrutura final:
 │       └── jira.sh
 └── checklists/                 # carregam só se o diff tocar na camada
     ├── backend-node-nest.md
-    └── frontend-vue.md
+    ├── frontend-vue.md
+    ├── frontend-react.md
+    └── database-postgres-pgvector.md
 
 ~/.config/ms-ai-tools/
 ├── .env                        # suas credenciais, fora da skill
