@@ -87,14 +87,20 @@ entre elas é um achado de natureza diferente.
    construindo. Teste ausente onde havia regra de negócio nova, ou teste
    sem asserção, são achados.
 
-5. **Rodar o que for barato.** `scripts/run-checks.sh <alvo>` roda
-   typecheck e os testes que o diff tocou num worktree isolado, sem
-   instalar nada. Ler `raw/checks-result.md`. Teste que falha é `blocker:`
-   com o trecho da saída; typecheck que falha é `blocker:` — são resultado
-   verificado, não inferência de leitura. Lint que falha **não** é achado
-   (já coberto por "Não reportar"). O relatório ganha uma linha depois da
-   contagem, ex.: `verificações: typecheck ok · 3 testes ok · lint não
-   rodou (sem script)`.
+5. **Rodar o que for barato.** `scripts/run-checks.sh <alvo> --keep` roda
+   typecheck e os testes que o diff tocou, por pacote (monorepo: um por
+   `package.json` mais próximo), num worktree isolado, sem instalar nada.
+   `--keep` mantém o worktree vivo depois do script sair — necessário para
+   o refutador poder executar código; removê-lo é o passo 12.
+   Ler `raw/checks-result.md`. Teste que falha é `blocker:` com o trecho
+   da saída; typecheck que falha é `blocker:` — são resultado verificado,
+   não inferência de leitura, exceto o que já falhava na `base_sha`
+   (baseline): isso é pré-existente do projeto, não do PR, e entra como
+   contagem (`N pré-existente(s)`), não como achado. Lint que falha
+   **não** é achado (já coberto por "Não reportar"). O relatório ganha
+   uma linha depois da contagem, ex.: `verificações: typecheck ok · 3
+   testes ok · lint não rodou (sem script)`, citando pré-existentes e
+   `baseline: indisponível (<motivo>)` quando for o caso.
 
 6. **Aplicar os checklists.** Quais carregar não é julgamento: ler
    `raw/checklists.json` (campo `load`), gerado por
@@ -131,7 +137,9 @@ entre elas é um achado de natureza diferente.
     reference/segunda-passagem.md antes de continuar.
 
 12. **Gravar o relatório da rodada**, para a próxima revisão deste mesmo
-    alvo poder ser incremental. Ver reference/re-review.md.
+    alvo poder ser incremental. Ver reference/re-review.md. Remover o
+    worktree do passo 5 (`git worktree remove --force`, caminho em
+    `raw/checks.json.worktree`) — ele só fica vivo durante a revisão.
 
 ## Calibragem de severidade
 

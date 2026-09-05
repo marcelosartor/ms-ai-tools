@@ -287,20 +287,40 @@ scripts/run-checks.sh 158
 ```
 
 Cria um worktree isolado no `head_sha` — nunca mexe no seu working tree —,
+agrupa os arquivos tocados por `package.json` **mais próximo** (monorepo:
+um pacote por manifesto, cada um com seu próprio `typecheck`/`lint`/teste),
 reaproveita `node_modules` já instalado via symlink quando o diff não
-altera dependências (nunca roda `npm install`), detecta `typecheck`/`lint`
-em `package.json` (ou `tsc --noEmit` direto, se houver `tsconfig.json` e
-`typescript` instalado) e o runner de teste (`vitest` ou `jest`) em
-`node_modules/.bin`. Roda só os arquivos de teste que o diff tocou, mais os
-que importam algum arquivo tocado.
+altera dependências (o do próprio pacote se existir, senão o da raiz —
+hoisting de workspace; nunca roda `npm install`), detecta `typecheck`/
+`lint` em cada `package.json` (ou `tsc --noEmit` direto, se houver
+`tsconfig.json` e `typescript` instalado) e o runner de teste (`vitest` ou
+`jest`) em `node_modules/.bin`. Roda só os arquivos de teste que o diff
+tocou, mais os que importam algum arquivo tocado pelo caminho relativo
+(`'../src/a/b'`, não pelo nome nu — `index.ts` não casa a suíte inteira).
 
-Grava `raw/checks-result.md` (legível, com a saída de quem falhou) e
-`raw/checks.json` (estruturado). Teste e typecheck que falham são
+Quando typecheck ou teste falha no head, monta um segundo worktree em
+`base_sha` (`temp/cr/<alvo>/wt-base`, sempre removido ao final) e roda o
+mesmo comando lá: erro de typecheck que já existia na base sai da lista
+(`checks.json` marca `preexisting`); teste que já falhava na base entra
+como pré-existente, não como falha do PR. Sem `package.json` no caminho de
+nenhum arquivo tocado, mas com `pom.xml`/`build.gradle*` no caminho, o
+script registra "stack fora do Node" e sai `0` — Java/Android não rodam
+aqui (fora de escopo desta versão).
+
+`--keep` mantém o worktree do head vivo depois do script sair (caminho em
+`checks.json.worktree`); sem a flag, é removido ao sair. O worktree da
+base é sempre removido pelo próprio script.
+
+Grava `raw/checks-result.md` (legível, com a saída de quem falhou, por
+pacote) e `raw/checks.json` (estruturado: resumo agregado no topo —
+`deps`/`typecheck`/`lint`/`test` — e detalhe por pacote em `packages:
+[{dir, typecheck, lint, test}]`). Teste e typecheck que falham são
 `blocker:` no relatório da skill; lint que falha, não — cai na regra de não
 reportar o que já é coberto por lint do CI.
 
-Sai `0` se tudo que rodou passou (mesmo que nada tenha rodado), `1` se algo
-falhou, `2` se não conseguiu montar o worktree.
+Sai `0` se tudo que rodou passou (mesmo que nada tenha rodado, ou a stack
+seja fora do Node), `1` se algo falhou (descontada a baseline), `2` se não
+conseguiu montar o worktree do head.
 
 ## Publicar o review
 

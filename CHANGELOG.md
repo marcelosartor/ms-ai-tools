@@ -21,6 +21,16 @@ vira uma tag git (`vX.Y.Z`).
 
 ### Adicionado
 
+- **`ms-codereview`: `run-checks.sh` com baseline, monorepo e worktree
+  vivo.** Agrupa arquivos tocados pelo `package.json` mais próximo (um
+  pacote por manifesto, com seu próprio typecheck/lint/teste). Quando
+  typecheck ou teste falha no head, compara com a `base_sha` num segundo
+  worktree: erro ou teste que já falhava na base não vira `blocker:` do
+  PR. `--keep` mantém o worktree do head vivo (para o refutador executar
+  código depois); descoberta de teste passa a casar o caminho relativo
+  importado, não o nome nu — `index.ts` não casa a suíte inteira. Projeto
+  Java/Gradle/Maven sem `package.json` é detectado e registrado como
+  "stack fora do Node" em vez de "sem script".
 - **`ms-codereview`: detecção v2 de checklist.** `checklists/index.json`
   ganha `manifest` (casa por conteúdo do manifesto mais próximo, qualquer
   ecossistema — não só npm), `always` (checklist transversal, carrega
