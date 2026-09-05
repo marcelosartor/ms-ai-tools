@@ -25,6 +25,9 @@
 # numa linha adicionada do diff. "variants" ({<nome>: {deps?/manifest?/
 # paths?/content?}}) não muda se o checklist carrega — só diz quais seções
 # dele aplicar, e entra na saída em "variants.<checklist>" quando casar.
+# "paths_require_manifest": true faz "paths" só contar quando "manifest"
+# também casar (ex.: "**/*.kts" sozinho não deve carregar um checklist
+# Android num projeto Gradle Kotlin qualquer).
 #
 # "security" (independente dos checklists de stack) sai true quando: um
 # caminho do diff casa um padrão sensível (auth/sessão/token/cripto/senha/
@@ -240,7 +243,15 @@ while IFS= read -r name; do
 
   if [ ${#REASON_PARTS[@]} -eq 0 ]; then
     m="$(match_paths "$name" "" || true)"
-    [ -z "$m" ] || REASON_PARTS+=("paths: $m")
+    if [ -n "$m" ]; then
+      REQUIRES_MANIFEST="$(idx_get "$name" "" '.paths_require_manifest // false')"
+      if [ "$REQUIRES_MANIFEST" = "true" ]; then
+        mf_guard="$(match_manifest "$name" "" || true)"
+        [ -z "$mf_guard" ] || REASON_PARTS+=("paths: $m")
+      else
+        REASON_PARTS+=("paths: $m")
+      fi
+    fi
   fi
   if [ ${#REASON_PARTS[@]} -eq 0 ]; then
     d="$(match_deps "$name" "" || true)"

@@ -116,7 +116,8 @@ Estrutura final:
 │   ├── backend-node.md            # carregam só se o diff tocar na camada
 │   ├── frontend-vue.md
 │   ├── frontend-react.md
-│   └── database-postgres-pgvector.md
+│   ├── database-postgres-pgvector.md
+│   └── android-kotlin.md          # Compose, Views, Room, Hilt por variante
 └── tests/
     ├── run.sh                  # bash ms-codereview/tests/run.sh
     └── f*.sh                   # um arquivo por feature, carregados pelo run.sh
@@ -431,6 +432,7 @@ pelo menos uma destas chaves:
 | `always` | `true`: carrega sempre que o diff tiver ao menos um arquivo, `why: "always"` — para o checklist transversal que toda revisão lê |
 | `content` | a regex (ERE, case-insensitive) aparece numa linha adicionada do diff |
 | `variants` | `{<nome>: {deps?, manifest?, paths?, content?}}` — mesma semântica das chaves acima, mas não decide se o checklist carrega: só quais seções dele aplicar. Entra na saída em `variants.<checklist>` quando casar |
+| `paths_require_manifest` | `true`: `paths` só conta se `manifest` também casar — para padrão de arquivo genérico (`**/*.kts`) que sozinho não deve carregar o checklist num projeto de stack diferente |
 
 Qualquer uma basta; não precisa de todas. `index.json` é dado, não código —
 adicionar checklist não toca `detect-checklists.sh`.

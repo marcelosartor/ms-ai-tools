@@ -44,5 +44,21 @@
     "content": ["chat\\.completions", "messages\\.create", "generateText\\(", "streamText\\(",
                 "embeddings?\\.create", "ChatClient", "EmbeddingModel", "GenerativeModel",
                 "system_prompt", "systemPrompt", "tool_use", "function_call"]
+  },
+  "android-kotlin": {
+    "paths": ["**/AndroidManifest.xml", "**/src/*/res/**", "**/proguard-rules.pro",
+              "**/network_security_config.xml", "**/*.kts"],
+    "paths_require_manifest": true,
+    "manifest": {"files": ["build.gradle.kts", "build.gradle"],
+                 "pattern": "com\\.android\\.(application|library)|android \\{|androidx",
+                 "ext": [".kt", ".java", ".xml"]},
+    "content": ["androidx\\.", "android\\.(os|content|app|view|widget)\\.", "@Composable",
+                "@HiltViewModel", "@AndroidEntryPoint", "@Dao", "@Entity\\(tableName"],
+    "variants": {
+      "compose": {"manifest": {"files": ["build.gradle.kts", "build.gradle", "libs.versions.toml"], "pattern": "androidx\\.compose|compose-bom|buildFeatures.*compose|compose = true", "ext": [".kt"]}, "content": ["@Composable"]},
+      "views": {"paths": ["**/res/layout/**"], "content": ["ViewBinding", "findViewById", "RecyclerView", "Fragment\\("]},
+      "room": {"manifest": {"files": ["build.gradle.kts", "build.gradle", "libs.versions.toml"], "pattern": "androidx\\.room|room-runtime", "ext": [".kt"]}, "content": ["@Dao", "@Database\\(", "RoomDatabase"]},
+      "hilt": {"content": ["@HiltViewModel", "@AndroidEntryPoint", "@InstallIn"]}
+    }
   }
 }

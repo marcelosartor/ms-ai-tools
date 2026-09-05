@@ -21,6 +21,14 @@ vira uma tag git (`vX.Y.Z`).
 
 ### Adicionado
 
+- **`ms-codereview`: checklist `android-kotlin`.** Kotlin, Coroutines/
+  Flow, arquitetura (MVVM/UDF), ciclo de vida e plataforma (permissões,
+  edge-to-edge, predictive back), rede e dados, segurança
+  (`exported`, WebView, cleartext), build/release e acessibilidade,
+  mais `Compose`, `Views (XML)`, `Room` e `Hilt` por variante.
+  `detect-checklists.sh` ganha `paths_require_manifest`: `**/*.kts`
+  sozinho não carrega o checklist num projeto Gradle Kotlin que não é
+  Android.
 - **`ms-codereview`: checklists transversais `common`, `ci-infra` e
   `llm-integration`.** `common` (`always: true`) cobre o que nenhum
   checklist de stack vê (`.env.example`, contrato quebrado, TODO sem
