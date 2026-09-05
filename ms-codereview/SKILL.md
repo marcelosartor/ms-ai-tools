@@ -104,7 +104,10 @@ entre elas é um achado de natureza diferente.
    cada checklist carregado, vindo do campo `why` (ex.: `checklist:
    frontend-react (paths: src/pages/Search.tsx)`). `load` vazio não é
    achado — só significa que o diff não tocou nenhuma camada com
-   checklist.
+   checklist. Cada checklist tem uma seção `Comum` e seções por variante:
+   aplicar `Comum` mais as seções listadas em `variants` para esse
+   checklist (campo `variants` do mesmo `raw/checklists.json`); se
+   `variants` não lista nada para ele, aplicar todas as seções.
 
 7. **Passagem de segurança, se `raw/checklists.json` acionar.** Quando
    `security: true`, despachar um subagent (`Agent`, `general-purpose`)

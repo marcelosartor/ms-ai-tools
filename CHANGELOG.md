@@ -19,6 +19,16 @@ vira uma tag git (`vX.Y.Z`).
   relatório passa a gravar uma âncora (função/símbolo) por achado para
   reabri-lo no arquivo atual.
 
+### Adicionado
+
+- **`ms-codereview`: detecção v2 de checklist.** `checklists/index.json`
+  ganha `manifest` (casa por conteúdo do manifesto mais próximo, qualquer
+  ecossistema — não só npm), `always` (checklist transversal, carrega
+  sempre) e `variants` (diz quais seções de um checklist aplicar, sem
+  mudar se ele carrega). `deps` agora usa o manifesto **mais próximo** de
+  cada arquivo tocado em vez do `package.json` da raiz — monorepo sem
+  manifesto na raiz passa a detectar corretamente.
+
 ### Alterado
 
 - **`ms-codereview`: `SKILL.md` quebrado em núcleo e referência.** Precedência,

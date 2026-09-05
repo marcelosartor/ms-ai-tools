@@ -235,7 +235,7 @@ Grava em `temp/cr/<pr>/raw/`, dentro do repositório revisado:
 | `ticket.md` | o ticket em Markdown — mesmo formato para todo tracker |
 | `ticket.json`, `ticket-comments.json` | resposta crua da API |
 | `context-status.json` | o que deu certo, o tracker usado, se o PR é mecânico, `head_sha`/`base_sha` do diff, `previous_report`/`previous_sha` da rodada anterior (se houver), `previous_is_ancestor` (se o sha anterior ainda é ancestral do head — `false`/`null` indica rebase ou force-push), `previous_base_sha`/`base_moved`, e o motivo do que faltou |
-| `checklists.json` | quais checklists carregar e por quê, e se o diff aciona a passagem de segurança dedicada (`security`/`security_why`) — gerado sempre, independente do ticket |
+| `checklists.json` | quais checklists carregar e por quê (`load`/`why`), quais variantes de cada um casaram (`variants`), e se o diff aciona a passagem de segurança dedicada (`security`/`security_why`) — gerado sempre, independente do ticket |
 
 Revisão do mesmo alvo depois de o autor empurrar commits é incremental: a
 skill grava `temp/cr/<alvo>/report-<sha7>.md` a cada rodada, e a próxima
@@ -366,10 +366,13 @@ pelo menos uma destas chaves:
 | Chave | Casa quando |
 |---|---|
 | `paths` | algum arquivo do diff bate com o glob (`**/` no início também casa sem prefixo de diretório) |
-| `deps` | a dependência está em `dependencies`/`devDependencies` do `package.json` da raiz, e o diff toca algum `.ts`/`.tsx`/`.js`/`.jsx`/`.vue` |
+| `deps` | a dependência está em `dependencies`/`devDependencies` do `package.json` **mais próximo** de algum arquivo `.ts`/`.tsx`/`.js`/`.jsx`/`.vue` tocado (monorepo: cada arquivo usa o manifesto do seu próprio diretório, subindo até achar um) |
+| `manifest` | `{files, pattern, ext}` — algum arquivo tocado tem extensão em `ext`, e o manifesto mais próximo dele (primeiro nome de `files` encontrado subindo diretórios) contém `pattern` (`grep -qiE`). Base de `deps` para ecossistema fora do npm (Maven, Gradle) |
+| `always` | `true`: carrega sempre que o diff tiver ao menos um arquivo, `why: "always"` — para o checklist transversal que toda revisão lê |
 | `content` | a regex (ERE, case-insensitive) aparece numa linha adicionada do diff |
+| `variants` | `{<nome>: {deps?, manifest?, paths?, content?}}` — mesma semântica das chaves acima, mas não decide se o checklist carrega: só quais seções dele aplicar. Entra na saída em `variants.<checklist>` quando casar |
 
-Qualquer uma basta; não precisa das três. `index.json` é dado, não código —
+Qualquer uma basta; não precisa de todas. `index.json` é dado, não código —
 adicionar checklist não toca `detect-checklists.sh`.
 
 A passagem de segurança (`security`/`security_why`) é separada dos

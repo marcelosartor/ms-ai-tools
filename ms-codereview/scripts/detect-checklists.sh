@@ -10,13 +10,21 @@
 # toca este script — e grava <base>/temp/cr/<alvo>/raw/checklists.json:
 #
 #   { "load": ["frontend-react"], "why": {"frontend-react": "paths: src/x.tsx"},
+#     "variants": {"backend-node": ["nest", "fastify"]},
 #     "security": true, "security_why": "caminho: src/auth/login.ts (**/auth/**)" }
 #
-# Semântica de cada entrada do índice: o checklist entra se qualquer
-# "paths" casar com um arquivo do diff, ou qualquer "deps" estiver em
-# dependencies/devDependencies do package.json da raiz e o diff tocar
-# algum arquivo .ts/.tsx/.js/.jsx/.vue, ou qualquer "content" (regex ERE,
-# case-insensitive) aparecer numa linha adicionada do diff.
+# Semântica de cada entrada do índice: o checklist entra se qualquer "paths"
+# casar com um arquivo do diff; ou qualquer "deps" estiver em
+# dependencies/devDependencies do manifesto (package.json) MAIS PRÓXIMO de
+# algum arquivo .ts/.tsx/.js/.jsx/.vue tocado (monorepo: cada arquivo usa o
+# manifesto do seu próprio diretório, subindo até achar um); ou "manifest"
+# ({files, pattern, ext}) casar — arquivo tocado com extensão em "ext" cujo
+# manifesto mais próximo (primeiro nome de "files" encontrado) contém
+# "pattern"; ou "always":true, que carrega sempre que o diff tiver ao menos
+# um arquivo; ou qualquer "content" (regex ERE, case-insensitive) aparecer
+# numa linha adicionada do diff. "variants" ({<nome>: {deps?/manifest?/
+# paths?/content?}}) não muda se o checklist carrega — só diz quais seções
+# dele aplicar, e entra na saída em "variants.<checklist>" quando casar.
 #
 # "security" (independente dos checklists de stack) sai true quando: um
 # caminho do diff casa um padrão sensível (auth/sessão/token/cripto/senha/
@@ -33,7 +41,9 @@ set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BASE_DIR="${CR_BASE_DIR:-$PWD}"
-INDEX="$SKILL_DIR/checklists/index.json"
+# Override só usado pelos testes, para exercitar chaves do índice (manifest,
+# always, variants) sem depender de checklist real já existir.
+INDEX="${CR_CHECKLISTS_INDEX:-$SKILL_DIR/checklists/index.json}"
 
 TARGET="${1:-}"
 [ -n "$TARGET" ] || { echo "informe o número do PR ou o range de refs" >&2; exit 2; }
@@ -90,18 +100,112 @@ if [ -n "$DIFF_RANGE" ]; then
   ADDED_LINES="$(git -C "$BASE_DIR" diff "$DIFF_RANGE" 2>/dev/null | grep -E '^\+[^+]' || true)"
 fi
 
-# ---------- dependências do package.json da raiz ----------
-ROOT_PKG="$BASE_DIR/package.json"
-HAS_JS_FILE=false
-for f in "${FILES[@]}"; do
-  case "$f" in
-    *.ts|*.tsx|*.js|*.jsx|*.vue) HAS_JS_FILE=true; break ;;
-  esac
-done
+# ---------- manifesto mais próximo (F3: monorepo) ----------
+# Sobe diretórios a partir do arquivo até achar um dos nomes em $2, sem
+# passar de BASE_DIR. Cache por (diretório, nomes) para não reler o mesmo
+# manifesto várias vezes.
+declare -A MANIFEST_CACHE
+nearest_manifest() { # $1=arquivo (relativo a BASE_DIR) $2=nomes separados por espaço -> imprime caminho absoluto
+  local file="$1" names="$2" dir cache_key cached name candidate
+  dir="$(dirname "$file")"
+  while :; do
+    cache_key="$dir|$names"
+    if [ -n "${MANIFEST_CACHE[$cache_key]+x}" ]; then
+      cached="${MANIFEST_CACHE[$cache_key]}"
+    else
+      cached=""
+      for name in $names; do
+        if [ "$dir" = "." ]; then candidate="$BASE_DIR/$name"; else candidate="$BASE_DIR/$dir/$name"; fi
+        if [ -f "$candidate" ]; then cached="$candidate"; break; fi
+      done
+      MANIFEST_CACHE["$cache_key"]="$cached"
+    fi
+    if [ -n "$cached" ]; then printf '%s\n' "$cached"; return 0; fi
+    [ "$dir" != "." ] || return 1
+    dir="$(dirname "$dir")"
+  done
+}
 
-dep_present() { # $1=nome da dependência
-  [ -f "$ROOT_PKG" ] || return 1
-  jq -e --arg d "$1" '((.dependencies // {}) + (.devDependencies // {})) | has($d)' "$ROOT_PKG" >/dev/null 2>&1
+# ---------- leitura de uma chave do índice, do checklist ou de uma variante ----------
+idx_get() { # $1=nome do checklist $2=variante ("" = nenhuma) $3=filtro jq relativo
+  local name="$1" variant="$2" filter="$3"
+  if [ -n "$variant" ]; then
+    jq -r --arg n "$name" --arg v "$variant" ".[\$n].variants[\$v]$filter" "$INDEX"
+  else
+    jq -r --arg n "$name" ".[\$n]$filter" "$INDEX"
+  fi
+}
+
+is_js_file() { # $1=caminho -> exit 0 se a extensão é JS/TS/Vue
+  case "$1" in
+    *.ts|*.tsx|*.js|*.jsx|*.vue) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+match_paths() { # $1=nome $2=variante -> imprime o arquivo que casou; exit 1 se nenhum
+  local name="$1" variant="$2" pattern f
+  while IFS= read -r pattern; do
+    [ -n "$pattern" ] || continue
+    for f in "${FILES[@]}"; do
+      if glob_match "$pattern" "$f"; then printf '%s\n' "$f"; return 0; fi
+    done
+  done < <(idx_get "$name" "$variant" '.paths // [] | .[]')
+  return 1
+}
+
+match_deps() { # $1=nome $2=variante -> imprime a dependência que casou; exit 1 se nenhuma
+  # deps é açúcar de manifest com files:["package.json"]: casa se QUALQUER
+  # arquivo JS tocado tem a dependência no SEU manifesto mais próximo.
+  local name="$1" variant="$2" dep f manifest
+  while IFS= read -r dep; do
+    [ -n "$dep" ] || continue
+    for f in "${FILES[@]}"; do
+      is_js_file "$f" || continue
+      manifest="$(nearest_manifest "$f" "package.json" || true)"
+      [ -n "$manifest" ] || continue
+      if jq -e --arg d "$dep" '((.dependencies // {}) + (.devDependencies // {})) | has($d)' "$manifest" >/dev/null 2>&1; then
+        printf '%s\n' "$dep"
+        return 0
+      fi
+    done
+  done < <(idx_get "$name" "$variant" '.deps // [] | .[]')
+  return 1
+}
+
+match_manifest() { # $1=nome $2=variante -> imprime o basename do manifesto que casou; exit 1 se nenhum
+  local name="$1" variant="$2" names_list pattern exts f ext manifest matched_ext
+  names_list="$(idx_get "$name" "$variant" '.manifest.files // [] | join(" ")')"
+  [ -n "$names_list" ] || return 1
+  pattern="$(idx_get "$name" "$variant" '.manifest.pattern // empty')"
+  exts="$(idx_get "$name" "$variant" '.manifest.ext // [] | join(" ")')"
+  for f in "${FILES[@]}"; do
+    matched_ext=false
+    for ext in $exts; do
+      case "$f" in *"$ext") matched_ext=true; break ;; esac
+    done
+    [ "$matched_ext" = true ] || continue
+    manifest="$(nearest_manifest "$f" "$names_list" || true)"
+    [ -n "$manifest" ] || continue
+    if [ -z "$pattern" ] || grep -qiE -- "$pattern" "$manifest"; then
+      printf '%s\n' "$(basename "$manifest")"
+      return 0
+    fi
+  done
+  return 1
+}
+
+match_content() { # $1=nome $2=variante -> imprime a regex que casou; exit 1 se nenhuma
+  local name="$1" variant="$2" cpattern
+  [ -n "$ADDED_LINES" ] || return 1
+  while IFS= read -r cpattern; do
+    [ -n "$cpattern" ] || continue
+    if printf '%s\n' "$ADDED_LINES" | grep -qiE -- "$cpattern"; then
+      printf '%s\n' "$cpattern"
+      return 0
+    fi
+  done < <(idx_get "$name" "$variant" '.content // [] | .[]')
+  return 1
 }
 
 # ---------- glob sem find nem regex: case do bash ----------
@@ -129,39 +233,49 @@ while IFS= read -r name; do
   [ -n "$name" ] || continue
   REASON_PARTS=()
 
-  MATCHED_PATH=""
-  while IFS= read -r pattern; do
-    [ -n "$pattern" ] || continue
-    for f in "${FILES[@]}"; do
-      if glob_match "$pattern" "$f"; then MATCHED_PATH="$f"; break 2; fi
-    done
-  done < <(jq -r --arg n "$name" '.[$n].paths // [] | .[]' "$INDEX")
-  [ -z "$MATCHED_PATH" ] || REASON_PARTS+=("paths: $MATCHED_PATH")
-
-  if [ ${#REASON_PARTS[@]} -eq 0 ] && [ "$HAS_JS_FILE" = true ]; then
-    MATCHED_DEP=""
-    while IFS= read -r dep; do
-      [ -n "$dep" ] || continue
-      if dep_present "$dep"; then MATCHED_DEP="$dep"; break; fi
-    done < <(jq -r --arg n "$name" '.[$n].deps // [] | .[]' "$INDEX")
-    [ -z "$MATCHED_DEP" ] || REASON_PARTS+=("deps: $MATCHED_DEP")
+  IS_ALWAYS="$(idx_get "$name" "" '.always // false')"
+  if [ "$IS_ALWAYS" = "true" ] && [ ${#FILES[@]} -gt 0 ]; then
+    REASON_PARTS+=("always")
   fi
 
-  if [ ${#REASON_PARTS[@]} -eq 0 ] && [ -n "$ADDED_LINES" ]; then
-    MATCHED_CONTENT=""
-    while IFS= read -r cpattern; do
-      [ -n "$cpattern" ] || continue
-      if printf '%s\n' "$ADDED_LINES" | grep -qiE -- "$cpattern"; then
-        MATCHED_CONTENT="$cpattern"
-        break
-      fi
-    done < <(jq -r --arg n "$name" '.[$n].content // [] | .[]' "$INDEX")
-    [ -z "$MATCHED_CONTENT" ] || REASON_PARTS+=("content: $MATCHED_CONTENT")
+  if [ ${#REASON_PARTS[@]} -eq 0 ]; then
+    m="$(match_paths "$name" "" || true)"
+    [ -z "$m" ] || REASON_PARTS+=("paths: $m")
+  fi
+  if [ ${#REASON_PARTS[@]} -eq 0 ]; then
+    d="$(match_deps "$name" "" || true)"
+    [ -z "$d" ] || REASON_PARTS+=("deps: $d")
+  fi
+  if [ ${#REASON_PARTS[@]} -eq 0 ]; then
+    mf="$(match_manifest "$name" "" || true)"
+    [ -z "$mf" ] || REASON_PARTS+=("manifest: $mf")
+  fi
+  if [ ${#REASON_PARTS[@]} -eq 0 ]; then
+    c="$(match_content "$name" "" || true)"
+    [ -z "$c" ] || REASON_PARTS+=("content: $c")
   fi
 
   if [ ${#REASON_PARTS[@]} -gt 0 ]; then
     WHY_TEXT="$(IFS='; '; echo "${REASON_PARTS[*]}")"
-    jq -n -c --arg name "$name" --arg why "$WHY_TEXT" '{name:$name, why:$why}' >> "$MATCHES_FILE"
+
+    VARIANT_MATCHES=()
+    while IFS= read -r vname; do
+      [ -n "$vname" ] || continue
+      if match_paths "$name" "$vname" >/dev/null \
+         || match_deps "$name" "$vname" >/dev/null \
+         || match_manifest "$name" "$vname" >/dev/null \
+         || match_content "$name" "$vname" >/dev/null; then
+        VARIANT_MATCHES+=("$vname")
+      fi
+    done < <(idx_get "$name" "" '.variants // {} | keys[]')
+
+    VARIANTS_JSON="[]"
+    if [ ${#VARIANT_MATCHES[@]} -gt 0 ]; then
+      VARIANTS_JSON="$(printf '%s\n' "${VARIANT_MATCHES[@]}" | jq -R . | jq -s -c .)"
+    fi
+
+    jq -n -c --arg name "$name" --arg why "$WHY_TEXT" --argjson variants "$VARIANTS_JSON" \
+      '{name:$name, why:$why, variants:$variants}' >> "$MATCHES_FILE"
   fi
 done < <(jq -r 'keys[]' "$INDEX")
 
@@ -207,6 +321,7 @@ jq -s \
   --argjson security "$SECURITY" \
   --arg security_why "$SECURITY_WHY" \
   '{load: map(.name), why: (map({(.name): .why}) | add // {}),
+    variants: (map(select((.variants|length)>0) | {(.name): .variants}) | add // {}),
     security: $security,
     security_why: (if $security_why=="" then null else $security_why end)}' \
   "$MATCHES_FILE" > "$OUT"
