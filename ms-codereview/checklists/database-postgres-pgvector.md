@@ -20,6 +20,17 @@ embedding, busca semântica ou chunking, mesmo sem tocar em `.sql`.
   cresce com frequência era para ser tabela de lookup ou `text` + `CHECK`
 - `DROP`, `TRUNCATE`, `DELETE` sem `WHERE` em migration são achados que
   exigem justificativa explícita e plano de backup
+- DDL em tabela quente sem `SET lock_timeout` enfileira toda requisição
+  atrás do lock enquanto espera; `lock_timeout` curto e retry
+- FK ou `CHECK` em tabela populada: `ADD CONSTRAINT ... NOT VALID` e
+  depois `VALIDATE CONSTRAINT`, que não bloqueia escrita
+- `CREATE INDEX CONCURRENTLY` que falha deixa índice `INVALID`; a
+  migration confere ou dropa antes de recriar
+- Migration gerada por Prisma/Drizzle/TypeORM e editada à mão diverge do
+  schema declarado: `prisma migrate diff`/`drizzle-kit check` limpos
+- Migration que semeia dado é idempotente (`ON CONFLICT DO NOTHING`)
+- Flyway/Liquibase: migration já aplicada nunca é editada (checksum);
+  versão nova, mesmo para corrigir
 
 ## Schema e integridade
 
@@ -37,6 +48,12 @@ embedding, busca semântica ou chunking, mesmo sem tocar em `.sql`.
   escrita sem retorno
 - JSONB: campo que a app filtra ou ordena sai para coluna própria ou ganha
   índice GIN; jsonb como "saco para tudo" é dívida que vira Seq Scan
+- `UNIQUE` em tabela com soft-delete precisa ser índice parcial
+  `WHERE deleted_at IS NULL`, senão registro apagado bloqueia recriar
+- `serial` em tabela nova: `GENERATED ALWAYS AS IDENTITY`. UUID v4 como
+  PK de tabela grande fragmenta o índice; v7 (ordenável) ou `bigint`
+- Coluna `updated_at` sem trigger ou sem atualização pela app fica
+  mentindo
 
 ## Queries
 
@@ -59,6 +76,11 @@ embedding, busca semântica ou chunking, mesmo sem tocar em `.sql`.
   ligado e a policy cobre a tabela nova
 - Comparação de data respeita fuso: `timestamptz` com `AT TIME ZONE` onde
   o dia civil importa
+- Atrás de PgBouncer em modo `transaction`, `SET` de sessão (inclusive
+  `ef_search`, `search_path`, `statement_timeout`) não gruda: `SET LOCAL`
+  dentro da transação. Prepared statement nomeado também não
+- `statement_timeout` para query de usuário; sem ele, uma query ruim
+  segura a conexão
 
 ## pgvector
 
@@ -88,6 +110,14 @@ embedding, busca semântica ou chunking, mesmo sem tocar em `.sql`.
   reranking, filtro antes/depois — e não dois passos improvisados
 - `ef_search`/`probes` alterados por sessão, não em `postgresql.conf`
   global sem justificativa
+- Dimensão acima de 2000 **não indexa** com `vector` (HNSW e IVFFlat):
+  `text-embedding-3-large` (3072) exige `halfvec` (até 4000) ou redução
+  de dimensão no modelo
+- `maintenance_work_mem` cobre o build do índice HNSW; abaixo disso o
+  build cai para disco e demora horas. `m` e `ef_construction` alterados
+  têm justificativa
+- `hnsw.ef_search` maior que o `LIMIT` da consulta; igual ou menor
+  devolve menos que `n` com filtro
 
 ## Dados e segurança
 

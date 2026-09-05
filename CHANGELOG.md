@@ -21,6 +21,14 @@ vira uma tag git (`vX.Y.Z`).
 
 ### Adicionado
 
+- **`ms-codereview`: reforço dos checklists existentes.**
+  `frontend-vue.md` ganha seções de acessibilidade e testes (não tinha
+  nenhuma) e itens de reatividade/Pinia/formulário; `frontend-react.md`
+  ganha itens de hooks, efeitos, rota e teste assíncrono;
+  `database-postgres-pgvector.md` ganha migration sem lock longo (`NOT
+  VALID`/`VALIDATE CONSTRAINT`, `lock_timeout`), soft-delete com índice
+  parcial, `SET LOCAL` atrás de PgBouncer, e limite de dimensão do
+  pgvector (`halfvec` acima de 2000).
 - **`ms-codereview`: checklist `backend-node` (Express, Fastify, NestJS,
   Node puro).** Substitui `backend-node-nest.md` (assumia NestJS). Seção
   `Comum` cobre camadas, assincronia, banco e configuração para qualquer

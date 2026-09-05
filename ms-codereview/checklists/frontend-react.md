@@ -19,6 +19,11 @@ importa, o item diz "se o projeto usa".
 - Contexto usado como store global de tudo: cada mudança re-renderiza todo
   consumidor. Estado de domínio compartilhado vai para a store do projeto
   ou para o cache de dados
+- `{count && <X/>}` renderiza `0` quando `count` é zero: `count > 0 &&`
+- Selector de Zustand/Redux que devolve objeto ou array novo re-renderiza
+  sempre: selecionar campo primitivo ou usar `shallow`/`useShallow`
+- Objeto ou array criado no render como dependência de efeito reexecuta
+  o efeito a cada render (e vira loop com `setState`)
 
 ## Efeitos e assincronia
 
@@ -30,6 +35,10 @@ importa, o item diz "se o projeto usa".
   idempotente. Efeito que "só funciona em produção" é bug
 - Se o projeto usa TanStack Query/SWR: mutação invalida ou atualiza a query
   afetada; fetch manual em `useEffect` ao lado do cache é duplicação
+- Handler de evento `async` sem `try/catch` vira rejeição não tratada e
+  silêncio para o usuário
+- `React.lazy`/`Suspense` e chamada de dado têm `ErrorBoundary` por
+  cima: erro de render sem boundary derruba a árvore inteira
 
 ## Dados e formulários
 
@@ -40,6 +49,12 @@ importa, o item diz "se o projeto usa".
   validação duplicada à mão no `onSubmit` diverge com o tempo
 - Loading não desmonta o formulário — perde o que o usuário digitou
 - Erro de API vira mensagem útil, não silêncio nem stack trace
+- Mudança de parâmetro de rota na mesma tela recarrega o dado (`useEffect`
+  com o parâmetro na dependência ou `key` no componente)
+- Tela com formulário sujo avisa ao sair (`useBlocker` do router ou
+  `beforeunload`)
+- `Intl.NumberFormat`/`DateTimeFormat` com locale explícito;
+  `toLocaleString()` sem argumento varia por máquina
 
 ## shadcn/ui
 
@@ -91,6 +106,11 @@ importa, o item diz "se o projeto usa".
 - `href`/`src` com valor vindo do usuário é validado (bloqueia `javascript:`)
 - Regra de autorização não vive só no front: esconder botão não é controle
   de acesso; a rota da API tem a sua
+- Token de sessão em `localStorage` é legível por qualquer XSS: cookie
+  `httpOnly` ou memória, e o projeto decide; mudar de um para outro é
+  decisão, não detalhe
+- `target="_blank"` com `rel="noopener"` (padrão nos browsers atuais,
+  mas `window.open` manual não)
 
 ## Performance
 
@@ -108,3 +128,6 @@ importa, o item diz "se o projeto usa".
 - Hook customizado com lógica tem teste próprio
 - Correção de bug vem com teste que falharia sem o fix
 - Nenhum teste sem asserção
+- Assíncrono usa `findBy*`/`waitFor`, não `getBy*` logo após a ação
+- `userEvent` em vez de `fireEvent` para interação real (foco, teclado)
+- Rede mockada na borda (MSW ou fetch mock), não o hook de dados inteiro
