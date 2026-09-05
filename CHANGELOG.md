@@ -6,7 +6,7 @@ Versionamento em [semver](https://semver.org): a versão do pool vive em
 dela — ver a seção "Versões" do [README](README.md). Cada versão do pool
 vira uma tag git (`vX.Y.Z`).
 
-## [Não lançado]
+## [0.5.0] - 2026-09-05
 
 ### Adicionado
 
@@ -24,8 +24,7 @@ vira uma tag git (`vX.Y.Z`).
   mais tentado na descoberta automática; sem nenhum configurado, o script
   sai `4` sem procurar id. `--provider` explícito continua sendo tentado.
 
-`ms-codereview` foi a 0.5.0 (commit `5251a80`); o pool ainda está em
-0.4.0 no `package.json` — decidir se acompanha ao fechar esta entrada.
+Pool e `ms-codereview` vão a 0.5.0.
 
 ## [0.4.0] - 2026-09-05
 
