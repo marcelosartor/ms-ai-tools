@@ -9,10 +9,8 @@
 # Lê checklists/index.json — dado, não código: adicionar checklist não
 # toca este script — e grava <base>/temp/cr/<alvo>/raw/checklists.json:
 #
-#   { "load": ["frontend-react"], "why": {"frontend-react": "paths: src/x.tsx"}, "security": false }
-#
-# "security" é preenchido pela extensão de segurança (F6); aqui sai sempre
-# false.
+#   { "load": ["frontend-react"], "why": {"frontend-react": "paths: src/x.tsx"},
+#     "security": true, "security_why": "caminho: src/auth/login.ts (**/auth/**)" }
 #
 # Semântica de cada entrada do índice: o checklist entra se qualquer
 # "paths" casar com um arquivo do diff, ou qualquer "deps" estiver em
@@ -20,8 +18,16 @@
 # algum arquivo .ts/.tsx/.js/.jsx/.vue, ou qualquer "content" (regex ERE,
 # case-insensitive) aparecer numa linha adicionada do diff.
 #
+# "security" (independente dos checklists de stack) sai true quando: um
+# caminho do diff casa um padrão sensível (auth/sessão/token/cripto/senha/
+# upload/middleware/guard); uma linha adicionada bate um padrão de API
+# perigosa (exec/eval, innerHTML, child_process, jwt/bcrypt/crypto, cors,
+# etc.); ou o package.json ganhou uma dependência nova. "security_why" traz
+# a primeira condição que casou.
+#
 # Glob sem find nem regex: "**/" na frente do padrão também casa sem
-# nenhum prefixo de diretório (glob_match abaixo).
+# nenhum prefixo de diretório (glob_match abaixo). O padrão de conteúdo de
+# "security" é regex ERE de verdade (grep -E), assim como "content" acima.
 
 set -euo pipefail
 
@@ -159,7 +165,51 @@ while IFS= read -r name; do
   fi
 done < <(jq -r 'keys[]' "$INDEX")
 
-jq -s '{load: map(.name), why: (map({(.name): .why}) | add // {}), security: false}' "$MATCHES_FILE" > "$OUT"
+# ---------- passagem de segurança (F6) ----------
+SECURITY=false
+SECURITY_WHY=""
+
+SECURITY_PATH_PATTERNS='**/auth/** **/*auth* **/session* **/*token* **/*crypt* **/*password* **/upload* **/middleware/** **/*guard*'
+for pattern in $SECURITY_PATH_PATTERNS; do
+  for f in "${FILES[@]}"; do
+    if glob_match "$pattern" "$f"; then
+      SECURITY=true
+      SECURITY_WHY="caminho: $f ($pattern)"
+      break 2
+    fi
+  done
+done
+
+if [ "$SECURITY" = false ] && [ -n "$ADDED_LINES" ]; then
+  SECURITY_CONTENT_RE='exec\(|eval\(|dangerouslySetInnerHTML|\.raw\(|\.query\(.*\$\{|child_process|fs\.(read|write)|jwt|bcrypt|crypto\.|cors|helmet|multer|Access-Control|set-cookie|innerHTML|new Function'
+  MATCH_LINE="$(printf '%s\n' "$ADDED_LINES" | grep -iE "$SECURITY_CONTENT_RE" | head -1 || true)"
+  if [ -n "$MATCH_LINE" ]; then
+    SECURITY=true
+    SECURITY_WHY="conteúdo suspeito: $(printf '%s' "$MATCH_LINE" | cut -c1-120)"
+  fi
+fi
+
+if [ "$SECURITY" = false ] && [ -n "$BASE_SHA" ] && [ -n "$HEAD_SHA" ]; then
+  BASE_PKG_JSON="$(git -C "$BASE_DIR" show "$BASE_SHA:package.json" 2>/dev/null || echo '{}')"
+  HEAD_PKG_JSON="$(git -C "$BASE_DIR" show "$HEAD_SHA:package.json" 2>/dev/null || echo '{}')"
+  NEW_DEP="$(jq -n -r \
+    --argjson a "$BASE_PKG_JSON" --argjson b "$HEAD_PKG_JSON" \
+    '(($b.dependencies // {}) + ($b.devDependencies // {})) as $after
+     | (($a.dependencies // {}) + ($a.devDependencies // {})) as $before
+     | (($after | keys) - ($before | keys))[0] // empty')"
+  if [ -n "$NEW_DEP" ]; then
+    SECURITY=true
+    SECURITY_WHY="dependência nova: $NEW_DEP"
+  fi
+fi
+
+jq -s \
+  --argjson security "$SECURITY" \
+  --arg security_why "$SECURITY_WHY" \
+  '{load: map(.name), why: (map({(.name): .why}) | add // {}),
+    security: $security,
+    security_why: (if $security_why=="" then null else $security_why end)}' \
+  "$MATCHES_FILE" > "$OUT"
 
 echo "checklists em: $OUT"
-jq -r '"  load=\(if (.load|length)==0 then "-" else (.load|join(", ")) end)"' "$OUT"
+jq -r '"  load=\(if (.load|length)==0 then "-" else (.load|join(", ")) end)  security=\(.security)"' "$OUT"

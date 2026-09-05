@@ -47,6 +47,10 @@ Ferramenta própria — não é adaptada de terceiro.
   de verdade, num worktree isolado que nunca mexe no seu working tree e
   nunca instala dependência — falha vira `blocker:` verificado, não
   inferido pela leitura.
+- **Passagem de segurança dedicada.** Diff que toca caminho sensível
+  (auth, sessão, upload, middleware...), padrão de API perigosa, ou traz
+  dependência nova aciona um subagent com lente OWASP restrita a este
+  diff — além dos 3–4 itens de segurança de cada checklist de stack.
 
 ## Instalação
 
@@ -85,7 +89,8 @@ Estrutura final:
 │       ├── clickup.sh
 │       └── jira.sh
 ├── prompts/
-│   └── refute.md               # subagent que tenta derrubar cada blocker
+│   ├── refute.md                # subagent que tenta derrubar cada blocker
+│   └── security.md              # subagent de segurança, só quando acionado
 ├── checklists/
 │   ├── index.json               # regras de detecção (dado, não código)
 │   ├── backend-node-nest.md      # carregam só se o diff tocar na camada
@@ -98,7 +103,8 @@ Estrutura final:
     ├── f5.sh
     ├── f3.sh
     ├── f4.sh
-    └── f2.sh
+    ├── f2.sh
+    └── f6.sh
 
 ~/.config/ms-ai-tools/
 ├── .env                        # suas credenciais, fora da skill
@@ -229,7 +235,7 @@ Grava em `temp/cr/<pr>/raw/`, dentro do repositório revisado:
 | `ticket.md` | o ticket em Markdown — mesmo formato para todo tracker |
 | `ticket.json`, `ticket-comments.json` | resposta crua da API |
 | `context-status.json` | o que deu certo, o tracker usado, se o PR é mecânico, `head_sha`/`base_sha` do diff, `previous_report`/`previous_sha` da rodada anterior (se houver) e o motivo do que faltou |
-| `checklists.json` | quais checklists carregar e por quê — gerado sempre, independente do ticket |
+| `checklists.json` | quais checklists carregar e por quê, e se o diff aciona a passagem de segurança dedicada (`security`/`security_why`) — gerado sempre, independente do ticket |
 
 Revisão do mesmo alvo depois de o autor empurrar commits é incremental: a
 skill grava `temp/cr/<alvo>/report-<sha7>.md` a cada rodada, e a próxima
@@ -361,6 +367,11 @@ pelo menos uma destas chaves:
 
 Qualquer uma basta; não precisa das três. `index.json` é dado, não código —
 adicionar checklist não toca `detect-checklists.sh`.
+
+A passagem de segurança (`security`/`security_why`) é separada dos
+checklists de stack: os padrões que a acionam (caminho sensível, API
+perigosa, dependência nova) estão hardcoded em `detect-checklists.sh`, não
+em `index.json` — mudar isso é editar o script, não o dado.
 
 ### Adicionar um tracker novo
 

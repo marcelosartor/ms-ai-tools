@@ -146,16 +146,26 @@ entre elas é um achado de natureza diferente.
    achado — só significa que o diff não tocou nenhuma camada com
    checklist.
 
-7. **Verificar antes de reportar.** Ver a barra de verificação abaixo.
+7. **Passagem de segurança, se `raw/checklists.json` acionar.** Quando
+   `security: true`, despachar um subagent (`Agent`, `general-purpose`)
+   com `prompts/security.md` preenchido (`security_why`, `base`, `head`) e
+   acesso ao repositório, antes de reportar. Os achados dele entram na
+   lista como qualquer outro — mesma calibragem, mesma barra de
+   verificação, mesmo refutador do passo seguinte para todo `blocker:`. O
+   relatório traz uma linha: `segurança: passagem dedicada (motivo:
+   <security_why>)` quando acionou, ou `segurança: não acionada` quando
+   não.
 
-8. **Reportar** no formato descrito abaixo.
+8. **Verificar antes de reportar.** Ver a barra de verificação abaixo.
 
-9. **Recomendar e rascunhar o comentário.** Sempre, mesmo quando o
+9. **Reportar** no formato descrito abaixo.
+
+10. **Recomendar e rascunhar o comentário.** Sempre, mesmo quando o
    relatório não teve nenhum achado.
 
-10. **Revisar a própria revisão** antes de entregar. Ver "Segunda passagem".
+11. **Revisar a própria revisão** antes de entregar. Ver "Segunda passagem".
 
-11. **Gravar o relatório da rodada**, para a próxima revisão deste mesmo
+12. **Gravar o relatório da rodada**, para a próxima revisão deste mesmo
     alvo poder ser incremental. Ver "Re-review incremental".
 
 ## Re-review incremental
@@ -179,9 +189,9 @@ mas os dois divergem** (o mesmo alvo mudou desde a última rodada): modo
 incremental.
 
 - Ler o bloco de achados do `previous_report`.
-- Rodar os passos 3–7 do procedimento (as quatro perguntas, testes,
-  verificações, checklists) só sobre `git diff <previous_sha>..<head_sha>`
-  — o delta, não o PR inteiro.
+- Rodar os passos 3–8 do procedimento (as quatro perguntas, testes,
+  verificações, checklists, segurança se acionar) só sobre
+  `git diff <previous_sha>..<head_sha>` — o delta, não o PR inteiro.
 - Para cada achado da rodada anterior, reabrir o `arquivo:linha` no `head`
   atual e classificar:
 

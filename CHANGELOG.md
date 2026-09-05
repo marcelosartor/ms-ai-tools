@@ -17,6 +17,13 @@ vira uma tag git (`vX.Y.Z`).
   reduzida por tipo.
 - `ms-codereview/tests/run.sh`: primeiro harness de testes da skill, bash
   puro, com os casos do PR mecânico.
+- `ms-codereview`: passagem de segurança dedicada — `detect-checklists.sh`
+  aciona `security`/`security_why` em `raw/checklists.json` quando o diff
+  toca caminho sensível (auth, sessão, token, cripto, upload,
+  middleware...), um padrão de API perigosa (`eval`, `exec`, query
+  interpolada, `innerHTML`, `child_process`, `jwt`/`bcrypt`/`crypto`...)
+  ou ganha dependência nova; a skill despacha um subagent com
+  `prompts/security.md` (lente OWASP restrita ao diff) antes de reportar.
 - `ms-codereview`: `scripts/run-checks.sh` roda typecheck e os testes que
   o diff tocou, num worktree isolado (nunca mexe no working tree do
   usuário, nunca roda `npm install` — reaproveita `node_modules` via
