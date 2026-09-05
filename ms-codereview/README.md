@@ -1,4 +1,4 @@
-# ms-codereview v0.6.0
+# ms-codereview v0.7.0
 
 ## Descrição
 
@@ -484,5 +484,13 @@ São coisas diferentes e complementares:
   e caça bugs de correção
 - `/ms-codereview` é este checklist, com contexto de ticket, o seu critério de
   severidade e o seu formato de saída
+
+Os leitores independentes (três lentes — `spec`, `correção`, `checklist`
+— em paralelo, mesclados só depois) aproximam o mecanismo de leitura do
+nativo: o mesmo diff, mais de um olho. O que fica de diferença é o
+critério: contexto do ticket antes do diff (rejeitar por falta de dados
+em vez de inferir), veredito mecânico saindo de uma tabela em vez de
+impressão geral, e um rascunho que o usuário assina — nada é postado
+sem ele mandar.
 
 Usar os dois no mesmo PR e cruzar os resultados é melhor que escolher um.

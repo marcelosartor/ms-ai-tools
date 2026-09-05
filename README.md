@@ -197,7 +197,7 @@ Credencial existente nunca é sobrescrita nem descartada.
 
 | Ferramenta | Etapa do SDD | Versão | Comando | Credenciais |
 |---|---|---|---|---|
-| **[ms-codereview](ms-codereview/README.md)** | Revisão | 0.6.0 | `/ms-codereview` | ClickUp **ou** Jira |
+| **[ms-codereview](ms-codereview/README.md)** | Revisão | 0.7.0 | `/ms-codereview` | ClickUp, Jira **ou** GitHub Issues |
 | **ms-prd-generator** | Especificação | (Em Desenvolvimento) | — | — |
 | **ms-harness-generator** | Planejamento | (Em Desenvolvimento) | — | — |
 
@@ -227,11 +227,15 @@ novos commits é incremental — só o delta, com o que já foi resolvido
 separado do que continua aberto. Nada é postado no PR sem você pedir,
 inclusive o review inline que a skill deixa pronto para publicar.
 
-Busca o ticket no **ClickUp** ou no **Jira** (Cloud e Server/DC), escolhendo
-o tracker pelo formato do id que encontra no PR ou na branch; sem tracker,
-`--spec-file` aponta um documento local como contexto. Traz checklists de
-Node/NestJS, Vue/Quasar/Vuetify, React/Vite/Tailwind/shadcn e
-PostgreSQL/pgvector, carregados só quando o diff toca a camada.
+Busca o ticket no **ClickUp**, no **Jira** (Cloud e Server/DC) ou nas
+**GitHub Issues** (via `gh` autenticado, sem credencial própria),
+escolhendo o tracker pelo formato do id que encontra no PR ou na branch;
+sem tracker, `--spec-file` aponta um documento local como contexto. Traz
+checklists de Node (Express/Fastify/NestJS), Vue/Quasar/Vuetify,
+React/Vite/Tailwind/shadcn, Android nativo (Kotlin/Compose), Java/Spring
+Boot, PostgreSQL/pgvector, SQL Server, SQLite no Android e MongoDB, mais
+os transversais (`common`, CI/infra, integração com LLM) — carregados só
+quando o diff toca a camada.
 
 Requer `jq`, `curl` e `gh` autenticado.
 → **[Instalação, configuração dos trackers e manutenção](ms-codereview/README.md)**
