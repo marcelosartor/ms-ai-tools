@@ -10,3 +10,7 @@ node_modules/
 
 # manifesto gerado pelo instalador
 .ms-ai-tools.json
+
+# harness de desenvolvimento (instruções para o Claude Code neste repo);
+# não é produto do pool, não é versionado
+CLAUDE.md

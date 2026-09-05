@@ -4,6 +4,20 @@ Pool de ferramentas para desenvolvimento agêntico. Cada ferramenta é uma
 skill do Claude Code — algumas próprias, outras adaptadas de terceiros — e
 todas se instalam de uma vez.
 
+## Objetivo
+
+O ms-ai-tools existe para formalizar um workflow de **Spec-Driven
+Development (SDD)**: código nasce de uma especificação acordada — o que o
+ticket pediu, o que a mudança deveria fazer — e não do que parece razoável
+enquanto se escreve. Cada etapa desse processo ganha uma ferramenta
+determinada, em vez de depender de disciplina manual repetida a cada
+projeto e a cada pessoa.
+
+A cobertura é parcial por natureza: o pool cresce por etapa do workflow, não
+por acúmulo de utilitários soltos. Hoje só a etapa de **revisão** tem
+ferramenta (`ms-codereview`); especificação, planejamento e implementação
+ainda dependem de processo manual.
+
 Nada aqui é específico de cliente ou de projeto. O que uma ferramenta precisa
 saber do domínio vem do `CLAUDE.md` do repositório onde ela roda, ou do
 ticket, nunca de regra embutida na skill.
@@ -180,21 +194,29 @@ Credencial existente nunca é sobrescrita nem descartada.
 
 ## Ferramentas
 
-| Ferramenta | O que faz | Comando | Credenciais |
+| Ferramenta | Etapa do SDD | Comando | Credenciais |
 |---|---|---|---|
-| **[ms-codereview](ms-codereview/README.md)** | Revisão de PR de terceiros | `/ms-codereview` | ClickUp **ou** Jira |
+| **[ms-codereview](ms-codereview/README.md)** | Revisão | `/ms-codereview` | ClickUp **ou** Jira |
 
-### [ms-codereview](ms-codereview/README.md)
+### [ms-codereview](ms-codereview/README.md) — etapa de revisão
 
-Revisa um pull request de terceiros cruzando três versões da mesma história —
-o que o ticket pediu, o que o PR diz que faz e o que o código faz — e fecha
-com um veredito (*Aprovar* / *Aprovar com ressalvas* / *Rejeitar*) e um
-rascunho de comentário pronto para colar.
+**Por que existe:** revisar um PR de terceiro cruzando três versões da mesma
+história — o que o ticket pediu, o que o PR diz que faz, o que o código faz —
+é trabalho manual e inconsistente entre revisores. A ferramenta formaliza
+esse cruzamento como parte do workflow de SDD, em vez de depender de cada
+revisor lembrar de fazê-lo.
 
-Só bloqueia merge por erro de lógica, falha de segurança, perda ou vazamento
-de dado e regressão; o resto vira sugestão. Sem contexto que estabeleça o
-comportamento esperado, rejeita por falta de dados em vez de inferir a
-intenção a partir do diff. Nada é postado no PR sem você pedir.
+**Quando usar:** antes de aprovar um pull request de terceiro — em especial
+quando a descrição do PR não deixa claro qual era o comportamento esperado, e
+por isso vale confirmar contra o ticket.
+
+**Por que usar, e não só ler o diff:** severidade calibrada (só bloqueia por
+erro de lógica, falha de segurança, perda/vazamento de dado ou regressão; o
+resto vira sugestão), veredito mecânico derivado dos achados (*Aprovar* /
+*Aprovar com ressalvas* / *Rejeitar*), segunda passagem que descarta o que
+não se sustenta antes de entregar, e rejeição explícita por falta de dados em
+vez de inferir a intenção a partir do código. Nada é postado no PR sem você
+pedir.
 
 Busca o ticket no **ClickUp** ou no **Jira** (Cloud e Server/DC), escolhendo
 o tracker pelo formato do id que encontra no PR ou na branch. Traz checklists
@@ -223,6 +245,14 @@ descobre sozinho. A convenção do pool:
 ├── credentials.json  # opcional: trackers/credenciais que o instalador oferece
 └── scripts/          # *.sh recebem bit de execução na instalação
 ```
+
+O `README.md` da ferramenta precisa conter três coisas:
+
+- **Descrição** do que ela faz.
+- **Atribuição**, quando a ferramenta (ou parte dela) vier de terceiro: o
+  link da fonte original e o crédito autoral, perto do topo. Ferramenta
+  própria não precisa da seção.
+- **Como usar**: comando, argumentos, exemplo.
 
 O `credentials.json` é o que faz o instalador perguntar pelo tracker sem
 conhecer tracker nenhum — cada ferramenta declara os seus:
