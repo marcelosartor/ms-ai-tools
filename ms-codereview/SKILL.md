@@ -29,56 +29,12 @@ Revisar sem saber o que o PR **deveria** fazer só produz achado sobre o que
 ele faz — que é a parte fácil e a menos útil. A fonte primária é a descrição
 do PR. Quando ela não deixa claro qual era o comportamento esperado
 (descrição vazia, só "ajustes", ou que descreve a solução sem o problema),
-buscar o ticket:
-
-```bash
-scripts/fetch-context.sh 158                       # id do ticket vem do corpo do PR ou da branch
-scripts/fetch-context.sh 158 --task DEV-142        # quando não der para descobrir sozinho
-scripts/fetch-context.sh 158 --provider jira       # quando o formato do id for ambíguo
-scripts/fetch-context.sh 158 --spec-file docs/specs/refund.md  # sem tracker: arquivo local vira o contexto
-```
-
-O script fala com o tracker configurado — ClickUp ou Jira — e grava o
-ticket sempre nos mesmos arquivos (`raw/ticket.md`), qualquer que seja ele.
-Descobre o tracker sozinho pelo formato do id; `--provider` só é necessário
-quando erra. As credenciais ficam em `.env` na raiz desta skill (modelo em
-`.env.example`). Nunca colar credencial em comando nem citá-la no relatório.
-Provider sem credencial configurada nem é tentado na descoberta automática —
-só entra na jogada se `--provider` pedir por ele explicitamente.
-
-Sem tracker, ou quando o usuário indicar um documento em vez de um ticket:
-`--spec-file <caminho>` usa esse arquivo como fonte do contexto, sem tocar
-em tracker nenhum. Só roda quando o parâmetro é passado explicitamente —
-não existe busca automática em diretório de specs, porque não há como casar
-PR e arquivo sem risco de pegar o errado; se o usuário não indicar o
-arquivo, pular esse passo e seguir para o caminho do ticket ou para a
-rejeição por falta de dados.
-
-Saídas do script: `0` contexto obtido, `3` id do ticket não encontrado, `4`
-credencial ausente ou nenhum tracker configurado, `5` o tracker recusou. Em
-`3`, `4` ou `5`, tentar uma vez o caminho manual — perguntar o id ao
-usuário, pedir o caminho do documento de spec, ou ler o ticket pelo MCP do
-tracker se estiver conectado.
+buscar o ticket: `scripts/fetch-context.sh <alvo>`.
 
 **Exceção: PR mecânico dispensa ticket.** Bump de dependência, formatação,
 rename e correção de doc não têm ticket e não precisam — a própria mudança
-é a spec, e o que ela deveria fazer é o que o título diz.
-`scripts/fetch-context.sh` classifica isso sozinho (`context-status.json`:
-`mechanical` e `mechanical_kind`); quando `mechanical: true`, ele nem tenta
-ticket nem `--spec-file`. PR misto (ex.: bump de dependência junto de
-código novo) não é mecânico e segue o fluxo normal. Revisão reduzida por
-tipo:
-
-- `deps`: major bump tem changelog/breaking lido e citado; lockfile bate
-  com o `package.json`; dependência nova responde "é necessária, é
-  mantida, o que puxa junto".
-- `format`: confirmar que `git diff -w` está vazio; nada mais a revisar.
-- `rename`: nenhum import ou referência ao caminho antigo sobrou
-  (`grep -rn` pelo nome antigo fora do diff).
-- `docs`: só correção factual contra o código, quando o doc descreve
-  comportamento.
-
-Veredito continua saindo da tabela de sempre.
+é a spec, e o que ela deveria fazer é o que o título diz. Revisão reduzida
+por tipo, ver reference/contexto.md.
 
 **Se ainda assim não for possível estabelecer o que o PR deveria fazer, a
 revisão para aqui: rejeitar por falta de dados.** Não inferir a intenção a
@@ -101,9 +57,13 @@ entre elas é um achado de natureza diferente.
    dado de geração de contexto vive ali, inclusive o que for coletado à mão
    depois — o script já garante `temp/` no `.gitignore` do projeto. Ler
    `raw/pr-body.md` e guardar o que o autor **afirma** ter feito:
-   divergência entre isso e o que ele fez é achado relevante. Se
-   `raw/context-status.json` trouxer `previous_report`, esta é uma
-   re-revisão — ver "Re-review incremental" antes de continuar.
+   divergência entre isso e o que ele fez é achado relevante.
+
+   Se o script sair diferente de `0`, ou `raw/context-status.json` trouxer
+   `mechanical: true`: ler reference/contexto.md antes de continuar.
+
+   Se `raw/context-status.json` trouxer `previous_report` não nulo: ler
+   reference/re-review.md antes de continuar — esta é uma re-revisão.
 
 3. **Responder quatro perguntas antes de julgar o diff.** São o contexto
    mínimo; sem elas a revisão vira leitura de linha. Responder para si, não
@@ -162,66 +122,13 @@ entre elas é um achado de natureza diferente.
 
 10. **Recomendar e rascunhar o comentário.** Sempre, mesmo quando o
     relatório não teve nenhum achado.
+    Ler reference/comentario.md antes de continuar.
 
-11. **Revisar a própria revisão** antes de entregar. Ver "Segunda passagem".
+11. **Revisar a própria revisão** antes de entregar. Ler
+    reference/segunda-passagem.md antes de continuar.
 
 12. **Gravar o relatório da rodada**, para a próxima revisão deste mesmo
-    alvo poder ser incremental. Ver "Re-review incremental".
-
-## Re-review incremental
-
-`raw/context-status.json` traz `head_sha`, `previous_report` e
-`previous_sha` (sha7 do relatório anterior mais recente, se houver). Ao
-final de toda revisão — passo 12 do procedimento — gravar o relatório
-completo em `temp/cr/<alvo>/report-<sha7 de head_sha>.md`, começando com um
-bloco fixo, machine-readable, uma linha por achado que ficou no relatório:
-
-```
-<!-- achados
-blocker | src/api/refund.ts:88 | double-charge quando retry após timeout
-sugestão | src/api/refund.ts:120 | extrair cálculo de taxa
-dúvida | src/db/refund.sql:12 | índice cobre o filtro por status?
--->
-```
-
-**Quando `previous_report` existe e `previous_sha` é prefixo de `head_sha`
-mas os dois divergem** (o mesmo alvo mudou desde a última rodada): modo
-incremental.
-
-- Ler o bloco de achados do `previous_report`.
-- Rodar os passos 3–8 do procedimento (as quatro perguntas, testes,
-  verificações, checklists, segurança se acionar) só sobre
-  `git diff <previous_sha>..<head_sha>` — o delta, não o PR inteiro.
-- Para cada achado da rodada anterior, reabrir o `arquivo:linha` no `head`
-  atual e classificar:
-
-  | estado | critério |
-  |---|---|
-  | resolvido | o trecho mudou e o cenário de falha não se reproduz mais |
-  | aberto | o trecho não mudou, ou mudou e o cenário persiste |
-  | novo | achado sobre o delta que não existia na rodada anterior |
-
-  Arquivo que o delta não toca e que estava limpo na rodada anterior não é
-  relido — só o que mudou, mais o que já era achado.
-
-O relatório em modo incremental abre com uma linha própria, antes da
-contagem de sempre:
-
-`Desde a revisão anterior (<sha7 anterior> → <sha7 atual>): N resolvidos, N
-abertos, N novos`
-
-Lista, no formato padrão, só os abertos e os novos — resolvido aparece
-apenas nessa contagem, não como item. O veredito sai da mesma tabela de
-sempre, calculado sobre abertos + novos. O rascunho do comentário para o PR
-menciona só abertos e novos, e abre reconhecendo os resolvidos numa frase
-("já ajustou X e Y desde a última revisão").
-
-**Quando `previous_sha` já é igual a `head_sha`** (mesmo commit, nada
-mudou): avisar isso ao usuário e perguntar se é para revisar do zero mesmo
-assim. Não refazer sozinho.
-
-Sem `previous_report`, ou primeira revisão deste alvo: procedimento normal,
-do início ao fim — nada muda.
+    alvo poder ser incremental. Ver reference/re-review.md.
 
 ## Calibragem de severidade
 
@@ -256,11 +163,9 @@ revisor: na dúvida, perguntar em vez de afirmar.
 
 ## Formato do relatório
 
-Em modo incremental (ver "Re-review incremental"), abrir com a linha
-`Desde a revisão anterior (...): N resolvidos, N abertos, N novos` antes de
-tudo. Depois, sempre: uma linha de contagem no formato `2 correção, 4
-estilo`. Quando não houver achado de correção, começar com "Nenhum
-problema de correção encontrado".
+Em modo incremental, ver reference/re-review.md. Depois, sempre: uma linha
+de contagem no formato `2 correção, 4 estilo`. Quando não houver achado de
+correção, começar com "Nenhum problema de correção encontrado".
 
 Depois, no máximo três frases sobre o que o PR faz e onde está o maior
 risco.
@@ -314,102 +219,6 @@ rodou, alcance que só QA fecha, ambiente que não existe aqui. Aprovação não
 A decisão continua sendo dele — tem prazo, criticidade e time que esta
 análise não tem. A recomendação é insumo, e ele pode ignorá-la sem
 justificar. Dizer isso uma vez, em uma linha, e não repetir.
-
-## Comentário para o PR
-
-Depois da recomendação, oferecer um rascunho pronto para colar, dentro de
-um bloco de código para facilitar a cópia.
-
-Junto do texto, gravar `temp/cr/<alvo>/review-<sha7 de head_sha>.json` no
-formato que `gh api repos/{owner}/{repo}/pulls/{n}/reviews` aceita:
-
-```json
-{
-  "commit_id": "<head_sha completo>",
-  "event": "APPROVE",
-  "body": "<o rascunho, sem os itens que viraram comentário inline>",
-  "comments": [
-    { "path": "src/api/refund.ts", "line": 88, "side": "RIGHT", "body": "<texto do item>" }
-  ]
-}
-```
-
-Veredito → `event`: Aprovar → `APPROVE`; Aprovar com ressalvas → `COMMENT`;
-Rejeitar → `REQUEST_CHANGES`. Cada item acionável do rascunho vira uma
-entrada em `comments[]` quando o `arquivo:linha` está dentro do diff
-(`line` é a linha do arquivo **novo**, `side` sempre `"RIGHT"`); item sobre
-linha fora do diff fica só no `body`. As regras do rascunho acima (primeira
-pessoa, idioma do PR, sem jargão, ≤ 15 linhas) valem tanto para `body`
-quanto para cada `comments[].body`.
-
-Este JSON não é postado sozinho. Ao final, mostrar ao usuário o comando
-para publicar quando ele decidir:
-
-```bash
-scripts/post-review.sh <pr>
-```
-
-`post-review.sh` confere que o `commit_id` gravado ainda é o head atual do
-PR antes de postar — recusa e pede para revisar de novo se o PR mudou
-desde então.
-
-Regras do rascunho:
-
-- Primeira pessoa, como se o usuário tivesse escrito. É ele quem assina.
-- Mesmo idioma do PR.
-- Sem o jargão desta skill. Nada de `blocker:`, `nit:`, `sugestão:` —
-  traduzir para "isso impede o merge", "isso é opcional".
-- Só o que o autor precisa acionar. Nit e observação interna ficam fora do
-  comentário, mesmo estando no relatório.
-- Cada ponto com `arquivo:linha` e o efeito concreto, nunca o rótulo.
-- Onde havia `dúvida:`, perguntar de verdade em vez de afirmar.
-- Abrir reconhecendo o que ficou bom, quando houver; fechar dizendo o que
-  falta para aprovar.
-- Curto. Passando de ~15 linhas, cortar itens em vez de resumir todos.
-- Em modo incremental, só os itens abertos e novos entram; reconhecer os
-  resolvidos numa frase, sem repetir o que já foi corrigido.
-
-## Segunda passagem
-
-Com relatório, recomendação e rascunho prontos, revisar a própria revisão
-antes de entregar. Percorrer cada achado e conferir:
-
-- O `arquivo:linha` citado ainda contém o que o achado afirma. Reabrir o
-  trecho; não confiar na memória da primeira leitura.
-- A afirmação sobre o comportamento anterior bate com o código em `main`
-  (`git show main:<arquivo>`), e não com o que se supôs que era.
-- O achado não descreve código que o PR só moveu de lugar, nem padrão já
-  adotado no resto do projeto.
-- A severidade sobrevive: `blocker:` que não consegue descrever o cenário
-  concreto de falha — entrada, estado, resultado errado — vira `dúvida:`.
-- O veredito continua derivando da tabela depois de qualquer
-  reclassificação feita acima.
-- Cada ponto do rascunho tem lastro num achado que sobreviveu.
-
-Achado que não sobrevive sai do relatório; não é rebaixado para "menciono
-por precaução". Relatório menor e correto vale mais que um maior com um
-item furado — quem assina é o usuário, e o custo do falso positivo é a
-credibilidade dele.
-
-**Refutação independente de cada `blocker:`.** A checagem acima é feita por
-quem escreveu o achado — carrega o mesmo viés. Para todo `blocker:` que
-sobreviver até aqui, despachar um subagent (`Agent`, `general-purpose`) com
-`prompts/refute.md` preenchido, um por blocker, em paralelo (até 8 por
-rodada; acima disso, agrupar achados do mesmo arquivo num único subagent).
-O subagent recebe acesso ao repositório e a `temp/cr/<alvo>/raw/`, mas
-**não** recebe o relatório inteiro — só o achado que vai testar, sem saber
-dos outros. A tarefa dele é tentar derrubar a afirmação, não confirmá-la.
-
-Aplicar o veredito do subagent:
-
-| veredito do refutador | efeito |
-|---|---|
-| `CONFIRMADO` | mantém `blocker:` |
-| `REFUTADO` | achado sai do relatório; registrar em `temp/cr/<alvo>/refuted.md` (`arquivo:linha`, afirmação, evidência da refutação) para auditoria |
-| `INCONCLUSIVO` | vira `dúvida:`, com a `nota` do refutador anexada |
-
-`sugestão:` e `nit:` não passam pelo refutador — a checagem manual acima já
-basta para o que não bloqueia.
 
 ## Limites
 

@@ -6,6 +6,18 @@ Versionamento em [semver](https://semver.org): a versão do pool vive em
 dela — ver a seção "Versões" do [README](README.md). Cada versão do pool
 vira uma tag git (`vX.Y.Z`).
 
+## [Não lançado]
+
+### Alterado
+
+- **`ms-codereview`: `SKILL.md` quebrado em núcleo e referência.** Precedência,
+  calibragem, barra de verificação, formato do relatório e veredito continuam
+  no `SKILL.md`, palavra por palavra. O que só se usa em situação específica
+  (PR mecânico, script de contexto com erro, re-review, rascunho de
+  comentário, segunda passagem) foi para `reference/`, lido pelo passo que o
+  cita — a revisão que rejeita cedo por falta de dados nunca chega a ler
+  `comentario.md` nem `segunda-passagem.md`.
+
 ## [0.6.0] - 2026-09-05
 
 Fecha o PRD de `docs/prd/ms-codereview-0.6.0.md` (local, não versionado):

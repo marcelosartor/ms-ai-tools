@@ -77,7 +77,12 @@ Estrutura final:
 
 ```
 ~/.claude/skills/ms-codereview/
-├── SKILL.md                    # o procedimento de revisão; carrega inteiro
+├── SKILL.md                    # núcleo do procedimento; carrega inteiro
+├── reference/                   # detalhe de um passo específico; carrega só quando esse passo pede
+│   ├── contexto.md               # passo 2, só se fetch-context.sh falhar ou o PR for mecânico
+│   ├── re-review.md              # passo 2, só se houver relatório anterior
+│   ├── comentario.md             # passo 10
+│   └── segunda-passagem.md       # passo 11
 ├── README.md
 ├── .env.example
 ├── scripts/
@@ -99,12 +104,7 @@ Estrutura final:
 │   └── database-postgres-pgvector.md
 └── tests/
     ├── run.sh                  # bash ms-codereview/tests/run.sh
-    ├── f7.sh                   # casos por feature, carregados pelo run.sh
-    ├── f5.sh
-    ├── f3.sh
-    ├── f4.sh
-    ├── f2.sh
-    └── f6.sh
+    └── f*.sh                   # um arquivo por feature, carregados pelo run.sh
 
 ~/.config/ms-ai-tools/
 ├── .env                        # suas credenciais, fora da skill
@@ -348,11 +348,15 @@ terceira vez em PRs diferentes. Essa é a única fonte confiável de regra boa.
 Regra que só vale para um cliente ou um projeto não entra aqui: ela vive no
 `CLAUDE.md` daquele repositório, que já tem precedência sobre este checklist.
 
-O `SKILL.md` carrega inteiro quando a skill é acionada; os checklists só
-carregam se o diff tocar naquela camada — decidido por
+O `SKILL.md` carrega inteiro quando a skill é acionada; `reference/` carrega
+por passo — só o arquivo do passo que precisa dele, e só quando a condição
+daquele passo bate (relatório anterior existe, PR mecânico, script de
+contexto falhou); `checklists/` carrega pelo diff, decidido por
 `scripts/detect-checklists.sh` a partir de `checklists/index.json`, não por
-julgamento na hora. Por isso vale manter o `SKILL.md` enxuto e engordar os
-checklists.
+julgamento na hora. Texto novo vai para o arquivo do passo que o usa, não
+para o `SKILL.md` — salvo regra que molda a revisão inteira (calibragem,
+barra de verificação, formato do relatório, veredito): essa fica no núcleo
+mesmo crescendo, porque toda revisão a lê de qualquer forma.
 
 ### Adicionar um checklist novo
 
