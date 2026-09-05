@@ -16,6 +16,7 @@
 #   2  erro de uso: sem PR numérico, review-*.json ausente, ou JSON inválido
 #   3  commit_id do review diverge do head atual do PR — revisar de novo
 #   4  gh recusou a publicação
+#   5  algum comments[] aponta para linha fora do diff atual — nada é postado
 
 set -euo pipefail
 
@@ -82,6 +83,55 @@ if [ "$COMMIT_ID" != "$CURRENT_HEAD" ]; then
   echo "commit_id do review ($COMMIT_ID) diverge do head atual do PR ($CURRENT_HEAD)." >&2
   echo "o PR mudou desde que este review foi escrito — revise de novo antes de publicar." >&2
   exit 3
+fi
+
+# ---------- cada comments[] precisa cair num intervalo do diff atual ----------
+# gh pr diff só mostra as linhas dentro dos hunks (@@ -a,b +c,d @@); GitHub
+# recusa comment fora deles com 422. Sem conseguir buscar o diff, segue sem
+# validar (best-effort) em vez de bloquear a publicação por um problema à
+# parte.
+N_COMMENTS="$(jq -r '(.comments // []) | length' "$REVIEW_FILE")"
+if [ "$N_COMMENTS" -gt 0 ] && PR_DIFF="$(gh pr diff "$TARGET" 2>/dev/null)"; then
+  DIFF_RANGES_FILE="$(mktemp)"
+  CUR_PATH=""
+  while IFS= read -r line; do
+    case "$line" in
+      '+++ '*)
+        CUR_PATH="${line#+++ }"; CUR_PATH="${CUR_PATH#b/}"
+        [ "$CUR_PATH" != "/dev/null" ] || CUR_PATH=""
+        ;;
+      '@@ '*)
+        [ -n "$CUR_PATH" ] || continue
+        NEWPART="$(printf '%s' "$line" | sed -nE 's/^@@ -[0-9]+(,[0-9]+)? \+([0-9]+)(,([0-9]+))? @@.*/\2 \4/p')"
+        NSTART="${NEWPART%% *}"; NLEN="${NEWPART##* }"
+        [ -n "$NSTART" ] || continue
+        [ -n "$NLEN" ] || NLEN=1
+        printf '%s\t%s\t%s\n' "$CUR_PATH" "$NSTART" "$((NSTART + NLEN - 1))" >> "$DIFF_RANGES_FILE"
+        ;;
+    esac
+  done <<< "$PR_DIFF"
+
+  line_in_diff() { # $1=path $2=linha
+    awk -F'\t' -v p="$1" -v n="$2" '$1==p && n>=$2 && n<=$3 {f=1} END{exit !f}' "$DIFF_RANGES_FILE"
+  }
+
+  INVALID=""
+  while IFS=$'\t' read -r idx c_path c_line c_start; do
+    ok=true
+    line_in_diff "$c_path" "$c_line" || ok=false
+    if [ -n "$c_start" ] && [ "$c_start" != "null" ]; then
+      line_in_diff "$c_path" "$c_start" || ok=false
+    fi
+    [ "$ok" = true ] || INVALID="${INVALID}  - item $idx: $c_path:$c_line"$'\n'
+  done < <(jq -r '(.comments // []) | to_entries[] | "\(.key)\t\(.value.path)\t\(.value.line)\t\(.value.start_line // "")"' "$REVIEW_FILE")
+
+  rm -f "$DIFF_RANGES_FILE"
+
+  if [ -n "$INVALID" ]; then
+    echo "linha fora do diff atual — nada foi postado:" >&2
+    printf '%s' "$INVALID" >&2
+    exit 5
+  fi
 fi
 
 # ---------- publica ----------

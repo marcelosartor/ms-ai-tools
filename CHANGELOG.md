@@ -21,6 +21,17 @@ vira uma tag git (`vX.Y.Z`).
 
 ### Adicionado
 
+- **`ms-codereview`: sinais baratos.** `raw/pr-comments.md` agora é lido —
+  ponto já levantado por outro revisor e respondido não é reportado de
+  novo. `gh pr checks` grava `raw/ci.json`/`raw/ci.md`; check vermelho é
+  `blocker:` mesmo sem verificação local rodada. GitHub Issues entra como
+  tracker (`scripts/providers/github.sh`, sem variável de `.env` — usa o
+  `gh` autenticado), candidato só quando ClickUp/Jira não estão
+  configurados. Achado com correção de 1–5 linhas sai como bloco
+  ` ```suggestion``` ` commitável no comentário do PR. `post-review.sh`
+  confere cada `comments[].line` contra os hunks do `gh pr diff` atual
+  antes de postar — linha fora do diff recusa com exit `5`, nada
+  parcial.
 - **`ms-codereview`: segurança afinada.** Gatilhos de caminho e conteúdo
   trocados por versões de menor falso positivo (saem `**/*auth*` e
   `**/*token*`, genéricos demais); dependência nova cobre também

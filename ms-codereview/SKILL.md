@@ -57,7 +57,10 @@ entre elas é um achado de natureza diferente.
    dado de geração de contexto vive ali, inclusive o que for coletado à mão
    depois — o script já garante `temp/` no `.gitignore` do projeto. Ler
    `raw/pr-body.md` e guardar o que o autor **afirma** ter feito:
-   divergência entre isso e o que ele fez é achado relevante.
+   divergência entre isso e o que ele fez é achado relevante. Ler também
+   `raw/pr-comments.md`: ponto que outro revisor já levantou e o autor
+   respondeu não é reportado de novo (ver "Não reportar"); resposta do
+   autor explicando uma decisão é contexto da mesma forma que o ticket.
 
    Se o script sair diferente de `0`, ou `raw/context-status.json` trouxer
    `mechanical: true`: ler reference/contexto.md antes de continuar.
@@ -100,7 +103,11 @@ entre elas é um achado de natureza diferente.
    **não** é achado (já coberto por "Não reportar"). O relatório ganha
    uma linha depois da contagem, ex.: `verificações: typecheck ok · 3
    testes ok · lint não rodou (sem script)`, citando pré-existentes e
-   `baseline: indisponível (<motivo>)` quando for o caso.
+   `baseline: indisponível (<motivo>)` quando for o caso. Check do CI
+   (`raw/ci.json`/`raw/ci.md`) que falhou é `blocker:` com o nome e o
+   link, mesmo que a verificação local não tenha rodado; CI verde entra
+   na mesma linha de `verificações:`, e "o que não cobriu" ao final deixa
+   de citar teste que o CI já rodou.
 
 6. **Aplicar os checklists.** Quais carregar não é julgamento: ler
    `raw/checklists.json` (campo `load`), gerado por
@@ -163,6 +170,11 @@ legibilidade, oportunidade de refatoração. Estes viram sugestão.
 - Padrão arquitetural já adotado no projeto
 - Falta de teste em código que não é regra de negócio
 - Código que o diff apenas moveu de lugar, salvo se for bloqueante
+- Ponto que outro revisor já levantou em `raw/pr-comments.md` e o autor
+  respondeu; se ainda estiver em aberto, citar em uma linha (`já apontado
+  por <autor> em <data>: <resumo>`) em vez de repetir como achado novo.
+  Divergência entre o que o autor respondeu ali e o que o código faz
+  continua sendo achado
 - Mais de cinco itens de nit; acima disso, citar como contagem no resumo
 
 ## Barra de verificação

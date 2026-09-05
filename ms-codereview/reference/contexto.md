@@ -10,7 +10,10 @@ scripts/fetch-context.sh 158 --provider jira       # quando o formato do id for 
 scripts/fetch-context.sh 158 --spec-file docs/specs/refund.md  # sem tracker: arquivo local vira o contexto
 ```
 
-O script fala com o tracker configurado — ClickUp ou Jira — e grava o
+O script fala com o tracker configurado — ClickUp, Jira ou GitHub Issues
+(este último sem variável de `.env`: usa o `gh` já autenticado, e só entra
+como candidato automático se nenhum dos outros dois estiver configurado)
+— e grava o
 ticket sempre nos mesmos arquivos (`raw/ticket.md`), qualquer que seja ele.
 Descobre o tracker sozinho pelo formato do id; `--provider` só é necessário
 quando erra. As credenciais ficam em `.env` na raiz desta skill (modelo em

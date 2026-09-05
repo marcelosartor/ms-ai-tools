@@ -27,6 +27,25 @@ linha fora do diff fica só no `body`. As regras do rascunho acima (primeira
 pessoa, idioma do PR, sem jargão, ≤ 15 linhas) valem tanto para `body`
 quanto para cada `comments[].body`.
 
+**Sugestão commitável.** Item de `comments[]` cujo achado tem correção de
+uma a cinco linhas, sem depender de contexto fora do trecho (typo,
+condição invertida, `await` faltando, chave de lista errada), leva o
+bloco:
+
+````
+```suggestion
+<linhas novas que substituem exatamente as linhas start_line..line>
+```
+````
+
+O item ganha `start_line` e `start_side: "RIGHT"` quando a correção
+abrange mais de uma linha (`line` continua sendo a última linha do
+trecho). Nunca num `blocker:` que precisa de decisão do autor (a correção
+certa depende de uma escolha que não é da skill fazer), nunca em linha
+fora do diff, nunca alterando mais de cinco linhas. O texto do comentário
+explica o porquê antes do bloco — o bloco substitui, não dispensa, a
+explicação.
+
 Este JSON não é postado sozinho. Ao final, mostrar ao usuário o comando
 para publicar quando ele decidir:
 
@@ -36,7 +55,9 @@ scripts/post-review.sh <pr>
 
 `post-review.sh` confere que o `commit_id` gravado ainda é o head atual do
 PR antes de postar — recusa e pede para revisar de novo se o PR mudou
-desde então.
+desde então — e confere cada `comments[].line` (e `start_line`, se houver)
+contra os hunks do diff atual antes de postar; linha fora do diff recusa
+com exit `5` e nada é postado, nem parcialmente.
 
 Regras do rascunho:
 

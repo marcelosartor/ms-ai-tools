@@ -212,19 +212,39 @@ http_get() { # $1 = url  $2 = arquivo de saída -> imprime o http_code
 . "$SKILL_DIR/scripts/providers/clickup.sh"
 # shellcheck disable=SC1091
 . "$SKILL_DIR/scripts/providers/jira.sh"
+# shellcheck disable=SC1091
+. "$SKILL_DIR/scripts/providers/github.sh"
 
-PROVIDERS="clickup jira"
+# github por último: não deve roubar id de quem já tem clickup/jira
+# configurado — só entra como candidato automático se `gh` estiver
+# autenticado (github_credentials).
+PROVIDERS="clickup jira github"
 
 # ---------- 2. PR do GitHub ----------
 if printf '%s' "$TARGET" | grep -qE '^[0-9]+$' && command -v gh >/dev/null 2>&1; then
   if gh pr view "$TARGET" \
-       --json number,title,url,state,isDraft,author,baseRefName,headRefName,baseRefOid,headRefOid,body,additions,deletions,changedFiles,files,labels,createdAt,mergedAt,closedAt \
+       --json number,title,url,state,isDraft,author,baseRefName,headRefName,baseRefOid,headRefOid,body,additions,deletions,changedFiles,files,labels,createdAt,mergedAt,closedAt,closingIssuesReferences \
        > "$RAW/pr.json" 2>"$RAW/gh-error.log"; then
     jq -r '.body // ""' "$RAW/pr.json" > "$RAW/pr-body.md"
     jq -r '.files[] | "\(.additions)\t\(.deletions)\t\(.path)"' "$RAW/pr.json" > "$RAW/pr-files.tsv" 2>/dev/null || true
     gh pr view "$TARGET" --comments > "$RAW/pr-comments.md" 2>/dev/null || true
     rm -f "$RAW/gh-error.log"
     PR_OK=true
+
+    # ---------- 2.1 CI (F5) ----------
+    if gh pr checks "$TARGET" --json name,state,link > "$RAW/ci.json" 2>/dev/null; then
+      {
+        printf '# CI\n\n'
+        if jq -e 'length == 0' "$RAW/ci.json" >/dev/null 2>&1; then
+          printf '(nenhum check configurado)\n'
+        else
+          jq -r '.[] | "- \(.state): \(.name) — \(.link // "-")"' "$RAW/ci.json"
+        fi
+      } > "$RAW/ci.md"
+    else
+      printf '# CI\n\n(não foi possível consultar `gh pr checks`)\n' > "$RAW/ci.md"
+      printf '[]\n' > "$RAW/ci.json"
+    fi
   fi
 fi
 

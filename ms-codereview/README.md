@@ -92,7 +92,8 @@ Estrutura final:
 │   ├── post-review.sh          # publica o review inline — só a pedido do usuário
 │   └── providers/
 │       ├── clickup.sh
-│       └── jira.sh
+│       ├── jira.sh
+│       └── github.sh          # sem variável de .env: usa o gh autenticado
 ├── prompts/
 │   ├── refute.md                # subagent que tenta derrubar cada blocker
 │   └── security.md              # subagent de segurança, só quando acionado
@@ -173,6 +174,7 @@ sendo lido e **vence** o compartilhado, para sobrepor um valor pontualmente.
 | ClickUp com id customizado (`DEV-123`) | `+ CLICKUP_TEAM_ID` | id do workspace na URL |
 | Jira Cloud | `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` | id.atlassian.com/manage-profile/security/api-tokens |
 | Jira Server / Data Center | `JIRA_BASE_URL`, `JIRA_TOKEN` (PAT) | Perfil > Personal Access Tokens |
+| GitHub Issues | nenhuma — usa o `gh` já autenticado | `gh auth login` |
 
 O `.env` nunca é versionado, nunca entra no pacote npm, nunca é impresso no
 relatório e nunca passa pela linha de comando — as credenciais vão para o `curl` por stdin, então não
@@ -195,6 +197,7 @@ Pelo formato do id encontrado no corpo do PR ou no nome da branch:
 |---|---|
 | `app.clickup.com/t/86ajrqjc7`, badge `ClickUp-86ajrqjc7-`, `feat/86ajrqjc7` | ClickUp |
 | `.../browse/DEV-142`, `?selectedIssue=DEV-142`, `feat/DEV-142-corrige-saldo` | Jira |
+| `Closes #123` do PR do GitHub, `#123`, `owner/repo#123`, branch `123-corrige-saldo` | GitHub Issues |
 
 Prefixo de conventional commit não é confundido com chave de projeto:
 `fix/123-ajuste` não vira `FIX-123`.
@@ -202,6 +205,11 @@ Prefixo de conventional commit não é confundido com chave de projeto:
 O único caso ambíguo é o id customizado do ClickUp (`DEV-123`), que tem a
 mesma cara de uma chave do Jira e por isso cai no Jira por padrão. Se o seu
 ClickUp usa esse formato, fixe `TRACKER_PROVIDER=clickup` no `.env`.
+
+GitHub Issues entra em último na ordem de descoberta — só é candidato
+automático se `gh` estiver autenticado e nenhum outro tracker tiver
+credencial configurada, para não roubar id de quem já usa ClickUp ou
+Jira.
 
 Para forçar pontualmente, use `--provider` na chamada do script.
 
@@ -237,6 +245,7 @@ Grava em `temp/cr/<pr>/raw/`, dentro do repositório revisado:
 | `context-status.json` | o que deu certo, o tracker usado, se o PR é mecânico, `head_sha`/`base_sha` do diff, `previous_report`/`previous_sha` da rodada anterior (se houver), `previous_is_ancestor` (se o sha anterior ainda é ancestral do head — `false`/`null` indica rebase ou force-push), `previous_base_sha`/`base_moved`, e o motivo do que faltou |
 | `checklists.json` | quais checklists carregar e por quê (`load`/`why`), quais variantes de cada um casaram (`variants`), e se o diff aciona a passagem de segurança dedicada (`security`/`security_why`) — gerado sempre, independente do ticket |
 | `advisories.md` | GHSA de dependência nova ou com versão alterada em manifesto tocado (npm, Maven/Gradle), consultado no GitHub Advisory Database; `não consultado (<motivo>)` sem `gh` ou com erro da API — nunca bloqueia a coleta |
+| `ci.json`, `ci.md` | estado de cada check do PR (`gh pr checks`) — check vermelho é `blocker:` mesmo sem verificação local |
 
 Revisão do mesmo alvo depois de o autor empurrar commits é incremental: a
 skill grava `temp/cr/<alvo>/report-<sha7>.md` a cada rodada, e a próxima
@@ -334,6 +343,14 @@ A skill nunca chama este script sozinha. Ele confere que o `commit_id`
 gravado no JSON ainda é o head atual do PR antes de postar — se o PR mudou
 desde que o review foi escrito (novo commit empurrado), recusa com exit `3`
 e pede para revisar de novo, em vez de postar comentário na linha errada.
+Também confere, com `gh pr diff`, que cada `comments[].line` (e
+`start_line`, se houver) cai dentro de um hunk do diff atual — GitHub
+recusa com HTTP 422 um comentário fora do diff, e aqui isso vira exit `5`
+antes de qualquer coisa ser postada, nem parcialmente.
+
+Item de `comments[]` com bloco ```` ```suggestion ``` ```` sai como
+sugestão commitável no GitHub — a pessoa aceita com um clique em vez de
+editar à mão.
 
 | Código | Significado |
 |---|---|
@@ -341,6 +358,7 @@ e pede para revisar de novo, em vez de postar comentário na linha errada.
 | `2` | erro de uso: sem PR numérico, `review-*.json` ausente, ou JSON inválido |
 | `3` | `commit_id` do review diverge do head atual do PR |
 | `4` | `gh` recusou a publicação |
+| `5` | algum `comments[]` aponta para linha fora do diff atual |
 
 ## Testes
 
@@ -416,7 +434,10 @@ funções, todas com o prefixo do nome do arquivo:
 Use `http_get <url> <arquivo>` para as chamadas: ele devolve o HTTP code e
 passa a credencial por stdin, fora do `argv`. Depois some o nome do arquivo à
 lista `PROVIDERS` em `fetch-context.sh` e documente as variáveis no
-`.env.example`.
+`.env.example`. `providers/github.sh` foge um pouco do contrato porque não
+tem variável própria: `<p>_credentials` confere `gh auth status` em vez de
+ler `.env`, e entra por último em `PROVIDERS` para não roubar id de quem já
+tem ClickUp ou Jira configurado.
 
 O resto da skill não muda: `ticket.md` tem o mesmo formato para todo tracker,
 então o `SKILL.md` não precisa saber qual está em uso.
