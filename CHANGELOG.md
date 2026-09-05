@@ -17,6 +17,11 @@ vira uma tag git (`vX.Y.Z`).
   reduzida por tipo.
 - `ms-codereview/tests/run.sh`: primeiro harness de testes da skill, bash
   puro, com os casos do PR mecânico.
+- `ms-codereview`: review inline pronto para postar — junto do rascunho de
+  comentário, a skill grava `temp/cr/<pr>/review-<sha7>.json` no formato
+  de review do GitHub (`comments[]` com `path`/`line`/`body`);
+  `scripts/post-review.sh <pr>` publica quando o usuário decidir, e
+  recusa (exit `3`) se o PR mudou desde que o review foi escrito.
 - `ms-codereview`: re-review incremental — `fetch-context.sh` grava
   `head_sha`/`base_sha` e detecta `previous_report`/`previous_sha` (o
   `report-<sha7>.md` mais recente em `temp/cr/<alvo>/`); a skill grava um

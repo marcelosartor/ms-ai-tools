@@ -297,6 +297,39 @@ justificar. Dizer isso uma vez, em uma linha, e não repetir.
 Depois da recomendação, oferecer um rascunho pronto para colar, dentro de
 um bloco de código para facilitar a cópia.
 
+Junto do texto, gravar `temp/cr/<alvo>/review-<sha7 de head_sha>.json` no
+formato que `gh api repos/{owner}/{repo}/pulls/{n}/reviews` aceita:
+
+```json
+{
+  "commit_id": "<head_sha completo>",
+  "event": "APPROVE",
+  "body": "<o rascunho, sem os itens que viraram comentário inline>",
+  "comments": [
+    { "path": "src/api/refund.ts", "line": 88, "side": "RIGHT", "body": "<texto do item>" }
+  ]
+}
+```
+
+Veredito → `event`: Aprovar → `APPROVE`; Aprovar com ressalvas → `COMMENT`;
+Rejeitar → `REQUEST_CHANGES`. Cada item acionável do rascunho vira uma
+entrada em `comments[]` quando o `arquivo:linha` está dentro do diff
+(`line` é a linha do arquivo **novo**, `side` sempre `"RIGHT"`); item sobre
+linha fora do diff fica só no `body`. As regras do rascunho acima (primeira
+pessoa, idioma do PR, sem jargão, ≤ 15 linhas) valem tanto para `body`
+quanto para cada `comments[].body`.
+
+Este JSON não é postado sozinho. Ao final, mostrar ao usuário o comando
+para publicar quando ele decidir:
+
+```bash
+scripts/post-review.sh <pr>
+```
+
+`post-review.sh` confere que o `commit_id` gravado ainda é o head atual do
+PR antes de postar — recusa e pede para revisar de novo se o PR mudou
+desde então.
+
 Regras do rascunho:
 
 - Primeira pessoa, como se o usuário tivesse escrito. É ele quem assina.

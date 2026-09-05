@@ -36,7 +36,10 @@ Ferramenta própria — não é adaptada de terceiro.
   `blocker:` ainda passa por um subagent à parte, que não viu o relatório e
   cuja única tarefa é tentar derrubar a afirmação. Falso positivo em PR de
   terceiro custa a credibilidade de quem assina.
-- **Não posta nada.** Comentário e review só saem quando você mandar.
+- **Não posta nada.** Comentário e review só saem quando você mandar —
+  inclusive o review inline pronto para postar (`review-<sha7>.json`),
+  que `scripts/post-review.sh` recusa publicar se o PR mudou desde que
+  foi escrito.
 - **Re-review incremental.** Depois de o autor empurrar commits, a
   próxima rodada revisa só o delta e diz o que foi resolvido, o que
   continua aberto e o que é novo — não recomeça do zero.
@@ -72,6 +75,7 @@ Estrutura final:
 ├── scripts/
 │   ├── fetch-context.sh        # coleta PR + ticket
 │   ├── detect-checklists.sh    # decide quais checklists carregar, pelo diff
+│   ├── post-review.sh          # publica o review inline — só a pedido do usuário
 │   └── providers/
 │       ├── clickup.sh
 │       └── jira.sh
@@ -87,7 +91,8 @@ Estrutura final:
     ├── run.sh                  # bash ms-codereview/tests/run.sh
     ├── f7.sh                   # casos por feature, carregados pelo run.sh
     ├── f5.sh
-    └── f3.sh
+    ├── f3.sh
+    └── f4.sh
 
 ~/.config/ms-ai-tools/
 ├── .env                        # suas credenciais, fora da skill
@@ -259,7 +264,28 @@ Cada revisão devolve três blocos, nesta ordem:
    mudar para virar o veredito, e uma frase sobre o que a revisão **não**
    cobriu. É insumo: quem decide é você.
 3. **Comentário para o PR** — rascunho pronto para colar, na primeira pessoa,
-   no idioma do PR e sem o jargão de severidade da skill.
+   no idioma do PR e sem o jargão de severidade da skill. Junto, a skill
+   grava `temp/cr/<pr>/review-<sha7>.json` no formato de review inline do
+   GitHub (`comments[]` com `path`/`line`/`body`).
+
+## Publicar o review
+
+```bash
+scripts/post-review.sh <pr>                 # usa o review-<sha7>.json mais recente
+scripts/post-review.sh <pr> --sha <sha7>    # força uma rodada específica
+```
+
+A skill nunca chama este script sozinha. Ele confere que o `commit_id`
+gravado no JSON ainda é o head atual do PR antes de postar — se o PR mudou
+desde que o review foi escrito (novo commit empurrado), recusa com exit `3`
+e pede para revisar de novo, em vez de postar comentário na linha errada.
+
+| Código | Significado |
+|---|---|
+| `0` | publicado |
+| `2` | erro de uso: sem PR numérico, `review-*.json` ausente, ou JSON inválido |
+| `3` | `commit_id` do review diverge do head atual do PR |
+| `4` | `gh` recusou a publicação |
 
 ## Testes
 
