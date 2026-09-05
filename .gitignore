@@ -14,3 +14,5 @@ node_modules/
 # harness de desenvolvimento (instruções para o Claude Code neste repo);
 # não é produto do pool, não é versionado
 CLAUDE.md
+docs
+

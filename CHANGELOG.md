@@ -17,7 +17,6 @@ vira uma tag git (`vX.Y.Z`).
 - `ms-codereview`: checklists `frontend-react.md` (React / Vite / Tailwind
   / shadcn) e `database-postgres-pgvector.md` (migration, schema, query,
   pgvector).
-- PRD da 0.6.0 do `ms-codereview` em `docs/prd/ms-codereview-0.6.0.md`.
 
 ### Alterado
 
