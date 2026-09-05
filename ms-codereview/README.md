@@ -31,9 +31,11 @@ Ferramenta própria — não é adaptada de terceiro.
   discutível, nomenclatura e organização viram sugestão, não trava.
 - **Veredito mecânico.** *Aprovar* / *Aprovar com ressalvas* / *Rejeitar* sai
   de uma tabela ancorada na severidade dos achados, não de impressão geral.
-- **Segunda passagem.** Antes de entregar, relê cada achado contra o código e
-  descarta o que não se sustenta. Falso positivo em PR de terceiro custa a
-  credibilidade de quem assina.
+- **Segunda passagem com refutador independente.** Antes de entregar, relê
+  cada achado contra o código e descarta o que não se sustenta; todo
+  `blocker:` ainda passa por um subagent à parte, que não viu o relatório e
+  cuja única tarefa é tentar derrubar a afirmação. Falso positivo em PR de
+  terceiro custa a credibilidade de quem assina.
 - **Não posta nada.** Comentário e review só saem quando você mandar.
 
 ## Instalação
@@ -70,6 +72,8 @@ Estrutura final:
 │   └── providers/
 │       ├── clickup.sh
 │       └── jira.sh
+├── prompts/
+│   └── refute.md               # subagent que tenta derrubar cada blocker
 ├── checklists/
 │   ├── index.json               # regras de detecção (dado, não código)
 │   ├── backend-node-nest.md      # carregam só se o diff tocar na camada

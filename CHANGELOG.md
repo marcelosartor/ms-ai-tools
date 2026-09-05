@@ -17,6 +17,11 @@ vira uma tag git (`vX.Y.Z`).
   reduzida por tipo.
 - `ms-codereview/tests/run.sh`: primeiro harness de testes da skill, bash
   puro, com os casos do PR mecânico.
+- `ms-codereview`: refutador independente — todo `blocker:` que sobrevive
+  à segunda passagem vai para um subagent à parte (`prompts/refute.md`),
+  que não vê o relatório e tenta derrubar a afirmação. Achado refutado sai
+  do relatório e vai para `temp/cr/<alvo>/refuted.md`; inconclusivo vira
+  `dúvida:`.
 - `ms-codereview`: detecção determinística de checklist —
   `scripts/detect-checklists.sh` decide, a partir do diff e de
   `checklists/index.json` (dado, não código), quais checklists carregar e

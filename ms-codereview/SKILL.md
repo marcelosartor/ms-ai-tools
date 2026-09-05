@@ -219,6 +219,9 @@ No máximo três frases, contendo:
    `arquivo:linha` e não por resumo;
 3. o que precisaria mudar para virar o veredito.
 
+Todo `blocker:` que chegou até aqui passou por refutação independente (ver
+"Segunda passagem") — não é a mesma leitura confirmando a si mesma.
+
 Fechar com uma frase sobre o que a revisão **não** cobriu: teste que não
 rodou, alcance que só QA fecha, ambiente que não existe aqui. Aprovação não
 é garantia, e é o usuário que assina.
@@ -268,9 +271,34 @@ por precaução". Relatório menor e correto vale mais que um maior com um
 item furado — quem assina é o usuário, e o custo do falso positivo é a
 credibilidade dele.
 
+**Refutação independente de cada `blocker:`.** A checagem acima é feita por
+quem escreveu o achado — carrega o mesmo viés. Para todo `blocker:` que
+sobreviver até aqui, despachar um subagent (`Agent`, `general-purpose`) com
+`prompts/refute.md` preenchido, um por blocker, em paralelo (até 8 por
+rodada; acima disso, agrupar achados do mesmo arquivo num único subagent).
+O subagent recebe acesso ao repositório e a `temp/cr/<alvo>/raw/`, mas
+**não** recebe o relatório inteiro — só o achado que vai testar, sem saber
+dos outros. A tarefa dele é tentar derrubar a afirmação, não confirmá-la.
+
+Aplicar o veredito do subagent:
+
+| veredito do refutador | efeito |
+|---|---|
+| `CONFIRMADO` | mantém `blocker:` |
+| `REFUTADO` | achado sai do relatório; registrar em `temp/cr/<alvo>/refuted.md` (`arquivo:linha`, afirmação, evidência da refutação) para auditoria |
+| `INCONCLUSIVO` | vira `dúvida:`, com a `nota` do refutador anexada |
+
+`sugestão:` e `nit:` não passam pelo refutador — a checagem manual acima já
+basta para o que não bloqueia.
+
 ## Limites
 
 Não postar o comentário no PR, não submeter review e não editar arquivos, a
 menos que o usuário peça explicitamente. O rascunho é rascunho até ele
 mandar publicar: o comentário sai com o nome dele, e ele valida cada ponto
 antes.
+
+Escrever dentro de `temp/cr/<alvo>/` (achados refutados, relatório da
+rodada, JSON de review) não conta como editar o projeto: é área de
+trabalho da própria skill, já fora do versionamento. A restrição acima é
+sobre o código do repositório revisado.
