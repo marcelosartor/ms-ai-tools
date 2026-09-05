@@ -158,6 +158,9 @@ write_status() {
     --arg head_sha "$DIFF_HEAD_SHA" \
     --arg previous_report "$PREVIOUS_REPORT" \
     --arg previous_sha "$PREVIOUS_SHA" \
+    --argjson previous_is_ancestor "$PREVIOUS_IS_ANCESTOR" \
+    --arg previous_base_sha "$PREVIOUS_BASE_SHA" \
+    --argjson base_moved "$BASE_MOVED" \
     '{target:$target, raw_dir:$raw, pr_fetched:$pr_ok,
       provider:(if $provider=="" then null else $provider end),
       task_id:(if $task_id=="" then null else $task_id end),
@@ -168,6 +171,9 @@ write_status() {
       head_sha:(if $head_sha=="" then null else $head_sha end),
       previous_report:(if $previous_report=="" then null else $previous_report end),
       previous_sha:(if $previous_sha=="" then null else $previous_sha end),
+      previous_is_ancestor:$previous_is_ancestor,
+      previous_base_sha:(if $previous_base_sha=="" then null else $previous_base_sha end),
+      base_moved:$base_moved,
       reason:(if $reason=="" then null else $reason end), generated_at:$generated_at}' \
     > "$STATUS_FILE"
   echo "contexto em: $RAW"
@@ -249,6 +255,39 @@ else
     DIFF_HEAD_SHA="$(git -C "$BASE_DIR" rev-parse "$RANGE_HEAD" 2>/dev/null || true)"
   else
     DIFF_HEAD_SHA="$(git -C "$BASE_DIR" rev-parse "$TARGET" 2>/dev/null || true)"
+  fi
+fi
+
+# ---------- previous_is_ancestor / previous_base_sha / base_moved (F1) ----------
+# previous_is_ancestor diz se o sha da rodada anterior ainda é ancestral do
+# head atual: false ou null indica rebase/force-push, e nesse caso o delta
+# previous_sha..head_sha incluiria commits que não são deste PR — a skill não
+# entra em modo incremental. null é "não dá para saber" (sem previous_sha, ou
+# o commit não existe mais no repo, ex.: force-push que descartou o commit).
+PREVIOUS_IS_ANCESTOR="null"
+if [ -n "$PREVIOUS_SHA" ] && [ -n "$DIFF_HEAD_SHA" ]; then
+  if git -C "$BASE_DIR" cat-file -e "${PREVIOUS_SHA}^{commit}" 2>/dev/null; then
+    if git -C "$BASE_DIR" merge-base --is-ancestor "$PREVIOUS_SHA" "$DIFF_HEAD_SHA" 2>/dev/null; then
+      PREVIOUS_IS_ANCESTOR="true"
+    else
+      PREVIOUS_IS_ANCESTOR="false"
+    fi
+  fi
+fi
+
+# previous_base_sha vem do bloco <!-- meta --> gravado pela rodada anterior
+# (relatórios antigos, de antes do F1, não têm o bloco: fica vazio). Difere
+# do base_sha atual quando a branch base recebeu merge/rebase entre rodadas.
+PREVIOUS_BASE_SHA=""
+if [ -n "$PREVIOUS_REPORT" ] && [ -f "$PREVIOUS_REPORT" ]; then
+  PREVIOUS_BASE_SHA="$(sed -n '/<!-- meta/,/-->/{/^base_sha:/{s/^base_sha: *//p}}' "$PREVIOUS_REPORT" | head -1)"
+fi
+BASE_MOVED="null"
+if [ -n "$PREVIOUS_BASE_SHA" ] && [ -n "$DIFF_BASE_SHA" ]; then
+  if [ "$PREVIOUS_BASE_SHA" != "$DIFF_BASE_SHA" ]; then
+    BASE_MOVED="true"
+  else
+    BASE_MOVED="false"
   fi
 fi
 

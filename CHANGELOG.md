@@ -8,6 +8,17 @@ vira uma tag git (`vX.Y.Z`).
 
 ## [Não lançado]
 
+### Corrigido
+
+- **`ms-codereview`: modo incremental.** A condição de entrada estava
+  invertida; rebase ou force-push fazia o delta incluir commits da base que
+  não são do PR; achado da rodada anterior não reancorava depois de novos
+  commits deslocarem a linha. `fetch-context.sh` agora grava
+  `previous_is_ancestor`, `previous_base_sha` e `base_moved`; sem
+  `previous_is_ancestor: true` a skill não entra em modo incremental, e o
+  relatório passa a gravar uma âncora (função/símbolo) por achado para
+  reabri-lo no arquivo atual.
+
 ### Alterado
 
 - **`ms-codereview`: `SKILL.md` quebrado em núcleo e referência.** Precedência,

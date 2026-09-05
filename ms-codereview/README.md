@@ -234,7 +234,7 @@ Grava em `temp/cr/<pr>/raw/`, dentro do repositório revisado:
 | `pr.json`, `pr-body.md`, `pr-files.tsv`, `pr-comments.md` | o PR |
 | `ticket.md` | o ticket em Markdown — mesmo formato para todo tracker |
 | `ticket.json`, `ticket-comments.json` | resposta crua da API |
-| `context-status.json` | o que deu certo, o tracker usado, se o PR é mecânico, `head_sha`/`base_sha` do diff, `previous_report`/`previous_sha` da rodada anterior (se houver) e o motivo do que faltou |
+| `context-status.json` | o que deu certo, o tracker usado, se o PR é mecânico, `head_sha`/`base_sha` do diff, `previous_report`/`previous_sha` da rodada anterior (se houver), `previous_is_ancestor` (se o sha anterior ainda é ancestral do head — `false`/`null` indica rebase ou force-push), `previous_base_sha`/`base_moved`, e o motivo do que faltou |
 | `checklists.json` | quais checklists carregar e por quê, e se o diff aciona a passagem de segurança dedicada (`security`/`security_why`) — gerado sempre, independente do ticket |
 
 Revisão do mesmo alvo depois de o autor empurrar commits é incremental: a
