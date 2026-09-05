@@ -21,6 +21,15 @@ vira uma tag git (`vX.Y.Z`).
 
 ### Adicionado
 
+- **`ms-codereview`: segurança afinada.** Gatilhos de caminho e conteúdo
+  trocados por versões de menor falso positivo (saem `**/*auth*` e
+  `**/*token*`, genéricos demais); dependência nova cobre também
+  `pom.xml`/`build.gradle*`/`libs.versions.toml`, não só `package.json`.
+  `raw/advisories.md` consulta o GitHub Advisory Database para
+  dependência nova ou alterada (nunca bloqueia a coleta). `prompts/
+  security.md` ganha `{{achados_existentes}}` (não repetir achado do
+  leitor principal), `{{advisories}}`, e as categorias configuração/open
+  redirect/CSRF/prototype pollution/ReDoS/CI/mobile.
 - **`ms-codereview`: `run-checks.sh` com baseline, monorepo e worktree
   vivo.** Agrupa arquivos tocados pelo `package.json` mais próximo (um
   pacote por manifesto, com seu próprio typecheck/lint/teste). Quando

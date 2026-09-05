@@ -342,8 +342,67 @@ if [ -n "$DIFF_BASE_SHA" ] && [ -n "$DIFF_HEAD_SHA" ]; then
       done
       if [ "$IS_DOCS" = true ]; then MECHANICAL=true; MECHANICAL_KIND="docs"; fi
     fi
+
+    # ---------- 2.7 advisories (F4) ----------
+    # Para cada dependência nova ou com versão alterada em manifesto
+    # tocado, consulta o GitHub Advisory Database. Nunca bloqueia a
+    # coleta: sem gh, ou com erro da API, grava o motivo e segue.
+    ADVISORIES_FILE="$RAW/advisories.md"
+    npm_changed_deps() { # $1=conteúdo base $2=conteúdo head -> "pacote<TAB>versão" por linha, só novo/alterado
+      jq -r -n \
+        --argjson a "$(printf '%s' "${1:-\{\}}" | jq -c '.' 2>/dev/null || echo '{}')" \
+        --argjson b "$(printf '%s' "${2:-\{\}}" | jq -c '.' 2>/dev/null || echo '{}')" \
+        '(($a.dependencies // {}) + ($a.devDependencies // {})) as $before
+         | (($b.dependencies // {}) + ($b.devDependencies // {})) as $after
+         | ($after | to_entries[] | select(($before[.key] // null) != .value) | "\(.key)\t\(.value)")' 2>/dev/null || true
+    }
+    maven_new_coords() { # $1=conteúdo base $2=conteúdo head -> "grupo:artefato" por linha, só o que é novo
+      comm -13 \
+        <(printf '%s' "$1" | grep -oE '<artifactId>[^<]+</artifactId>' | sed -E 's#</?artifactId>##g' | sort -u) \
+        <(printf '%s' "$2" | grep -oE '<artifactId>[^<]+</artifactId>' | sed -E 's#</?artifactId>##g' | sort -u) 2>/dev/null || true
+    }
+    if command -v gh >/dev/null 2>&1 && [ "${CR_NO_GH:-}" != "1" ]; then
+      ADV_COUNT=0
+      for f in "${DIFF_PATHS[@]}"; do
+        [ "$ADV_COUNT" -lt 30 ] || break
+        ECO=""
+        case "$(basename "$f")" in
+          package.json) ECO="npm" ;;
+          pom.xml|build.gradle|build.gradle.kts) ECO="maven" ;;
+        esac
+        [ -n "$ECO" ] || continue
+        BASE_MF="$(git -C "$BASE_DIR" show "$DIFF_BASE_SHA:$f" 2>/dev/null || true)"
+        HEAD_MF="$(git -C "$BASE_DIR" show "$DIFF_HEAD_SHA:$f" 2>/dev/null || true)"
+        [ -n "$HEAD_MF" ] || continue
+        if [ "$ECO" = "npm" ]; then
+          while IFS=$'\t' read -r pkg ver; do
+            [ -n "$pkg" ] || continue
+            ADV_COUNT=$((ADV_COUNT + 1)); [ "$ADV_COUNT" -le 30 ] || break
+            ADV_JSON="$(gh api "advisories?ecosystem=npm&affects=$pkg@$ver" --paginate 2>/dev/null || true)"
+            [ -n "$ADV_JSON" ] || continue
+            printf '%s' "$ADV_JSON" | jq -r --arg pkg "$pkg" --arg ver "$ver" \
+              '.[]? | "- **\(.ghsa_id)** (\(.severity)) — \($pkg)@\($ver): \(.vulnerabilities[0].vulnerable_version_range // "?") — corrigido em \(.vulnerabilities[0].first_patched_version // "?")"' \
+              2>/dev/null >> "$ADVISORIES_FILE" || true
+          done < <(npm_changed_deps "$BASE_MF" "$HEAD_MF")
+        else
+          while IFS= read -r artifact; do
+            [ -n "$artifact" ] || continue
+            ADV_COUNT=$((ADV_COUNT + 1)); [ "$ADV_COUNT" -le 30 ] || break
+            ADV_JSON="$(gh api "advisories?ecosystem=maven&affects=$artifact" --paginate 2>/dev/null || true)"
+            [ -n "$ADV_JSON" ] || continue
+            printf '%s' "$ADV_JSON" | jq -r --arg a "$artifact" \
+              '.[]? | "- **\(.ghsa_id)** (\(.severity)) — \($a): \(.vulnerabilities[0].vulnerable_version_range // "?") — corrigido em \(.vulnerabilities[0].first_patched_version // "?")"' \
+              2>/dev/null >> "$ADVISORIES_FILE" || true
+          done < <(maven_new_coords "$BASE_MF" "$HEAD_MF")
+        fi
+      done
+      [ -s "$ADVISORIES_FILE" ] || printf 'nenhum advisory encontrado\n' > "$ADVISORIES_FILE"
+    else
+      printf 'não consultado (gh ausente no PATH)\n' > "$ADVISORIES_FILE"
+    fi
   fi
 fi
+[ -f "$RAW/advisories.md" ] || printf 'não consultado (sem range de diff)\n' > "$RAW/advisories.md"
 
 if [ "$MECHANICAL" = true ]; then
   PROVIDER=""

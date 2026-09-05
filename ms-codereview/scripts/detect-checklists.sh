@@ -279,11 +279,11 @@ while IFS= read -r name; do
   fi
 done < <(jq -r 'keys[]' "$INDEX")
 
-# ---------- passagem de segurança (F6) ----------
+# ---------- passagem de segurança (F4/F6) ----------
 SECURITY=false
 SECURITY_WHY=""
 
-SECURITY_PATH_PATTERNS='**/auth/** **/*auth* **/session* **/*token* **/*crypt* **/*password* **/upload* **/middleware/** **/*guard*'
+SECURITY_PATH_PATTERNS='**/auth/** **/*auth.* **/*.guard.* **/*session* **/*jwt* **/*crypt* **/*password* **/*secret* **/upload* **/middleware/** **/*permission* **/*.policy.* **/*.strategy.* .github/workflows/** **/AndroidManifest.xml **/network_security_config.xml **/SecurityConfig*.java **/*Security*.kt'
 for pattern in $SECURITY_PATH_PATTERNS; do
   for f in "${FILES[@]}"; do
     if glob_match "$pattern" "$f"; then
@@ -295,7 +295,7 @@ for pattern in $SECURITY_PATH_PATTERNS; do
 done
 
 if [ "$SECURITY" = false ] && [ -n "$ADDED_LINES" ]; then
-  SECURITY_CONTENT_RE='exec\(|eval\(|dangerouslySetInnerHTML|\.raw\(|\.query\(.*\$\{|child_process|fs\.(read|write)|jwt|bcrypt|crypto\.|cors|helmet|multer|Access-Control|set-cookie|innerHTML|new Function'
+  SECURITY_CONTENT_RE='eval\(|dangerouslySetInnerHTML|\.raw\(|\.query\(.*\$\{|child_process|execSync|spawn(Sync)?\(|execFile|fs\.(read|write)|jwt|bcrypt|crypto\.|cors|helmet|multer|Access-Control|set-cookie|innerHTML|new Function|redirect\(|Location:|res\.cookie|Set-Cookie|sameSite|httpOnly|__proto__|prototype\[|yaml\.load|deserialize|ObjectInputStream|pull_request_target|addJavascriptInterface|setJavaScriptEnabled|exported="true"|permitAll|csrf\(\)\.disable|@PreAuthorize|rawQuery|WebSettings'
   MATCH_LINE="$(printf '%s\n' "$ADDED_LINES" | grep -iE "$SECURITY_CONTENT_RE" | head -1 || true)"
   if [ -n "$MATCH_LINE" ]; then
     SECURITY=true
@@ -303,18 +303,43 @@ if [ "$SECURITY" = false ] && [ -n "$ADDED_LINES" ]; then
   fi
 fi
 
+# dependência nova em qualquer manifesto tocado (npm, Maven, Gradle) — a
+# coordenada não existe na versão base do próprio arquivo.
+security_dep_keys() { # $1=tipo do manifesto -- lê conteúdo do stdin, imprime uma coordenada por linha
+  case "$1" in
+    package.json)
+      jq -r '((.dependencies // {}) + (.devDependencies // {}) + (.peerDependencies // {})) | keys[]' 2>/dev/null ;;
+    pom.xml)
+      grep -oE '<artifactId>[^<]+</artifactId>' | sed -E 's#</?artifactId>##g' ;;
+    build.gradle|build.gradle.kts)
+      grep -oE "[\"'][A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[A-Za-z0-9_.+-]+[\"']" | tr -d "\"'" ;;
+    libs.versions.toml)
+      grep -oE '^[A-Za-z0-9_-]+[[:space:]]*=' | sed -E 's/[[:space:]]*=$//' ;;
+  esac
+}
+
 if [ "$SECURITY" = false ] && [ -n "$BASE_SHA" ] && [ -n "$HEAD_SHA" ]; then
-  BASE_PKG_JSON="$(git -C "$BASE_DIR" show "$BASE_SHA:package.json" 2>/dev/null || echo '{}')"
-  HEAD_PKG_JSON="$(git -C "$BASE_DIR" show "$HEAD_SHA:package.json" 2>/dev/null || echo '{}')"
-  NEW_DEP="$(jq -n -r \
-    --argjson a "$BASE_PKG_JSON" --argjson b "$HEAD_PKG_JSON" \
-    '(($b.dependencies // {}) + ($b.devDependencies // {})) as $after
-     | (($a.dependencies // {}) + ($a.devDependencies // {})) as $before
-     | (($after | keys) - ($before | keys))[0] // empty')"
-  if [ -n "$NEW_DEP" ]; then
-    SECURITY=true
-    SECURITY_WHY="dependência nova: $NEW_DEP"
-  fi
+  for f in "${FILES[@]}"; do
+    MTYPE=""
+    case "$(basename "$f")" in
+      package.json) MTYPE="package.json" ;;
+      pom.xml) MTYPE="pom.xml" ;;
+      build.gradle) MTYPE="build.gradle" ;;
+      build.gradle.kts) MTYPE="build.gradle.kts" ;;
+      libs.versions.toml) MTYPE="libs.versions.toml" ;;
+      *) continue ;;
+    esac
+    BASE_CONTENT="$(git -C "$BASE_DIR" show "$BASE_SHA:$f" 2>/dev/null || true)"
+    HEAD_CONTENT="$(git -C "$BASE_DIR" show "$HEAD_SHA:$f" 2>/dev/null || true)"
+    BASE_KEYS="$(printf '%s' "$BASE_CONTENT" | security_dep_keys "$MTYPE" | sort -u || true)"
+    HEAD_KEYS="$(printf '%s' "$HEAD_CONTENT" | security_dep_keys "$MTYPE" | sort -u || true)"
+    NEW_DEP="$(comm -13 <(printf '%s\n' "$BASE_KEYS") <(printf '%s\n' "$HEAD_KEYS") | grep -v '^$' | head -1 || true)"
+    if [ -n "$NEW_DEP" ]; then
+      SECURITY=true
+      SECURITY_WHY="dependência nova: $NEW_DEP"
+      break
+    fi
+  done
 fi
 
 jq -s \

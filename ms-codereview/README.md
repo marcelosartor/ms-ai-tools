@@ -236,6 +236,7 @@ Grava em `temp/cr/<pr>/raw/`, dentro do repositório revisado:
 | `ticket.json`, `ticket-comments.json` | resposta crua da API |
 | `context-status.json` | o que deu certo, o tracker usado, se o PR é mecânico, `head_sha`/`base_sha` do diff, `previous_report`/`previous_sha` da rodada anterior (se houver), `previous_is_ancestor` (se o sha anterior ainda é ancestral do head — `false`/`null` indica rebase ou force-push), `previous_base_sha`/`base_moved`, e o motivo do que faltou |
 | `checklists.json` | quais checklists carregar e por quê (`load`/`why`), quais variantes de cada um casaram (`variants`), e se o diff aciona a passagem de segurança dedicada (`security`/`security_why`) — gerado sempre, independente do ticket |
+| `advisories.md` | GHSA de dependência nova ou com versão alterada em manifesto tocado (npm, Maven/Gradle), consultado no GitHub Advisory Database; `não consultado (<motivo>)` sem `gh` ou com erro da API — nunca bloqueia a coleta |
 
 Revisão do mesmo alvo depois de o autor empurrar commits é incremental: a
 skill grava `temp/cr/<alvo>/report-<sha7>.md` a cada rodada, e a próxima

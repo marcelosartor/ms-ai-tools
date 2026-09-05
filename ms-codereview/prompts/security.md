@@ -20,12 +20,34 @@ Olhar `git diff {{base}}...{{head}}` e o entorno de cada trecho tocado
   externo sem validação de schema.
 - **Dependência nova** — se `{{security_why}}` for sobre dependência, ela é
   necessária, é mantida, e não troca uma função nativa segura por uma
-  menos auditada?
+  menos auditada? `{{advisories}}` traz o que o GitHub Advisory Database
+  souber sobre as dependências novas ou alteradas deste diff: advisory que
+  afeta a versão instalada é `blocker:` citando o `GHSA`.
 - **Segredo no código** — chave, token ou credencial hardcoded no diff.
+- **Configuração** — CORS com `origin: '*'` e credenciais habilitadas;
+  cookie de sessão sem `httpOnly`, `secure` ou `sameSite`; rota de login
+  ou reset de senha sem rate limit; endpoint de debug ou actuator exposto.
+- **Open redirect** — destino de redirect construído a partir de parâmetro
+  do usuário, sem allowlist.
+- **CSRF** — autenticação por cookie sem token CSRF, ou `csrf().disable()`
+  fora de uma API stateless por bearer token.
+- **Prototype pollution e ReDoS** — merge recursivo de objeto vindo do
+  usuário sem bloquear `__proto__`/`constructor`; regex com repetição
+  aninhada aplicada a entrada do usuário.
+- **CI** — `pull_request_target` com checkout do PR; interpolação de
+  `github.event.*` (entrada não confiável) direto dentro de `run:`;
+  segredo passado a job que roda em fork; action de terceiro sem pin de
+  sha.
+- **Mobile** — componente `exported` sem validação do intent recebido;
+  `PendingIntent` mutável; `WebView` com JavaScript habilitado e interface
+  Java exposta (`addJavascriptInterface`); tráfego cleartext permitido;
+  segredo em `BuildConfig` ou `strings.xml`.
 
-Não procurar fora dessas categorias, e não repetir achado que já apareceu
-no relatório principal por outro motivo (ex.: bug de lógica sem
-implicação de segurança).
+Não procurar fora dessas categorias. Não repetir achado que já apareceu no
+relatório principal: `{{achados_existentes}}` lista os `arquivo:linha` que
+o leitor principal já reportou — se este diff foi despachado em paralelo
+aos leitores e a lista vier vazia, a deduplicação acontece na mesclagem,
+não aqui.
 
 ## Exigência de cada achado
 

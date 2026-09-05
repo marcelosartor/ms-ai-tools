@@ -117,8 +117,11 @@ entre elas é um achado de natureza diferente.
 
 7. **Passagem de segurança, se `raw/checklists.json` acionar.** Quando
    `security: true`, despachar um subagent (`Agent`, `general-purpose`)
-   com `prompts/security.md` preenchido (`security_why`, `base`, `head`) e
-   acesso ao repositório, antes de reportar. Os achados dele entram na
+   com `prompts/security.md` preenchido (`security_why`, `base`, `head`,
+   `achados_existentes` — `arquivo:linha` já reportados até aqui, para o
+   subagent não repetir — e `advisories` — conteúdo de
+   `raw/advisories.md`) e acesso ao repositório, antes de reportar. Os
+   achados dele entram na
    lista como qualquer outro — mesma calibragem, mesma barra de
    verificação, mesmo refutador do passo seguinte para todo `blocker:`. O
    relatório traz uma linha: `segurança: passagem dedicada (motivo:

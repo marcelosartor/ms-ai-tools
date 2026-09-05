@@ -46,7 +46,8 @@ normal. Revisão reduzida por tipo:
 
 - `deps`: major bump tem changelog/breaking lido e citado; lockfile bate
   com o `package.json`; dependência nova responde "é necessária, é
-  mantida, o que puxa junto".
+  mantida, o que puxa junto"; ler `raw/advisories.md` e citar advisory
+  encontrado.
 - `format`: confirmar que `git diff -w` está vazio; nada mais a revisar.
 - `rename`: nenhum import ou referência ao caminho antigo sobrou
   (`grep -rn` pelo nome antigo fora do diff).
