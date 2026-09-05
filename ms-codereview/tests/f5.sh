@@ -59,7 +59,9 @@ f5_nenhum_checklist() {
 
   run_detect "$d" "$base...$head"
   out="$(checklists_file_for "$d")"
-  assert_eq "f5: nenhum checklist carrega" "0" "$(jq '.load | length' "$out")"
+  # F9 (0.7.0): "common" tem always:true e carrega em todo diff não vazio
+  # — o que este teste queria dizer é que nenhum checklist de stack casa.
+  assert_eq "f5: nenhum checklist de stack carrega" "0" "$(jq '[.load[] | select(. != "common")] | length' "$out")"
 }
 
 f5_react_por_paths_e_pgvector_por_content

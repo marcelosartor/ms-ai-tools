@@ -21,6 +21,14 @@ vira uma tag git (`vX.Y.Z`).
 
 ### Adicionado
 
+- **`ms-codereview`: checklists transversais `common`, `ci-infra` e
+  `llm-integration`.** `common` (`always: true`) cobre o que nenhum
+  checklist de stack vê (`.env.example`, contrato quebrado, TODO sem
+  dono, i18n, licença) e carrega em todo PR. `ci-infra` cobre GitHub
+  Actions, Dockerfile e infra como código (workflow malicioso via
+  `pull_request_target`, segredo em log, imagem `latest`). `llm-
+  integration` cobre prompt, saída do modelo, custo/latência e RAG —
+  domínio do próprio pool.
 - **`ms-codereview`: reforço dos checklists existentes.**
   `frontend-vue.md` ganha seções de acessibilidade e testes (não tinha
   nenhuma) e itens de reatividade/Pinia/formulário; `frontend-react.md`

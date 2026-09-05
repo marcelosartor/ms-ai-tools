@@ -110,6 +110,9 @@ Estrutura final:
 │   └── security.md              # subagent de segurança, só quando acionado
 ├── checklists/
 │   ├── index.json               # regras de detecção (dado, não código)
+│   ├── common.md                  # always: true — carrega em todo PR
+│   ├── ci-infra.md                # workflow, Dockerfile, Terraform, k8s...
+│   ├── llm-integration.md         # chamada a modelo, RAG, agente
 │   ├── backend-node.md            # carregam só se o diff tocar na camada
 │   ├── frontend-vue.md
 │   ├── frontend-react.md

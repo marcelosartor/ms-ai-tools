@@ -26,5 +26,23 @@
   "database-postgres-pgvector": {
     "paths": ["**/migrations/**", "**/migration/**", "**/*.sql", "**/schema.prisma", "**/drizzle/**"],
     "content": ["vector\\(", "<=>", "<->", "<#>", "embedding", "pgvector", "CREATE INDEX", "ALTER TABLE"]
+  },
+  "common": {"always": true},
+  "ci-infra": {
+    "paths": [".github/workflows/**", "**/Dockerfile*", "**/docker-compose*.y*ml",
+              "**/*.tf", "**/k8s/**", "**/helm/**", "**/nginx*.conf", "**/Procfile",
+              "**/.gitlab-ci.yml", "**/Jenkinsfile", "**/fly.toml", "**/vercel.json"]
+  },
+  "llm-integration": {
+    "paths": ["**/prompts/**", "**/*prompt*", "**/*.prompt.*", "**/agents/**", "**/rag/**"],
+    "deps": ["openai", "@anthropic-ai/sdk", "ai", "@ai-sdk/openai", "@ai-sdk/anthropic",
+             "langchain", "@langchain/core", "llamaindex", "@google/generative-ai",
+             "ollama", "cohere-ai", "@mistralai/mistralai"],
+    "manifest": {"files": ["pom.xml", "build.gradle", "build.gradle.kts", "libs.versions.toml"],
+                 "pattern": "spring-ai|langchain4j|anthropic|openai|generativeai",
+                 "ext": [".java", ".kt"]},
+    "content": ["chat\\.completions", "messages\\.create", "generateText\\(", "streamText\\(",
+                "embeddings?\\.create", "ChatClient", "EmbeddingModel", "GenerativeModel",
+                "system_prompt", "systemPrompt", "tool_use", "function_call"]
   }
 }
