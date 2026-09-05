@@ -6,7 +6,7 @@
 # culpar o PR por erro pré-existente. Chamado pelo SKILL.md entre "ler os
 # testes" e "aplicar os checklists":
 #
-#   scripts/run-checks.sh <alvo> [--keep]
+#   scripts/run-checks.sh <alvo> [--keep] [--prove-fix]
 #
 # Cria um worktree isolado no head_sha (não mexe no working tree do
 # usuário), reaproveita o node_modules já instalado quando o diff não
@@ -18,7 +18,15 @@
 #
 # --keep mantém o worktree do head depois do script sair (caminho vai em
 # checks.json.worktree); sem a flag, é removido ao final. O worktree da
-# base (usado só para a baseline) é sempre removido pelo próprio script.
+# base (usado para a baseline e para --prove-fix) é sempre removido pelo
+# próprio script.
+#
+# --prove-fix, quando o diff toca arquivo de teste: copia esse arquivo
+# por cima do worktree da base (o código de produção continua sendo o da
+# base, sem o fix) e roda lá. checks.json.prove_fix: "proves" (falhou na
+# base, passa no head — o teste cobre o bug), "does_not_prove" (passa nos
+# dois), "inconclusive" (erro de compilação/import na base, ou sem
+# runner), null (nenhum teste tocado ou flag não passada).
 #
 # Grava raw/checks-result.md (legível, com a saída de quem falhou) e
 # raw/checks.json (estruturado): campos agregados no topo (deps,
@@ -38,10 +46,12 @@ BASE_DIR="${CR_BASE_DIR:-$PWD}"
 
 TARGET="${1:-}"
 KEEP=false
+PROVE_FIX=false
 shift || true
 while [ $# -gt 0 ]; do
   case "$1" in
     --keep) KEEP=true ;;
+    --prove-fix) PROVE_FIX=true ;;
   esac
   shift
 done
@@ -506,6 +516,82 @@ $([ -z "$P_TEST_OUT" ] || printf '\`\`\`\n%s\n\`\`\`\n' "$(printf '%s' "$P_TEST_
 fi
 rm -rf "$GROUPS_DIR" "$PKG_RESULTS_FILE"
 
+# ---------- teste prova o fix (F6): --prove-fix ----------
+# Monta o worktree da base, copia por cima só os arquivos de teste
+# tocados (o código de produção continua sendo o da base, sem o fix) e
+# roda esses testes lá. proves: falhou na base com o teste novo e passa
+# no head — o teste cobre o bug. does_not_prove: passa nos dois — o
+# teste não cobre o bug alegado. inconclusive: erro de compilação ou
+# import inexistente na base, ou runner ausente em algum dos dois lados.
+PROVE_FIX_RESULT="null"
+if [ "$PROVE_FIX" = true ]; then
+  TOUCHED_TEST_FILES=()
+  for f in "${FILES[@]}"; do
+    case "$f" in
+      *.spec.*|*.test.*|*/__tests__/*|__tests__/*) TOUCHED_TEST_FILES+=("$f") ;;
+    esac
+  done
+  if [ ${#TOUCHED_TEST_FILES[@]} -gt 0 ]; then
+    if ! ensure_base_worktree; then
+      PROVE_FIX_RESULT='"inconclusive"'
+    else
+      FIRST_TF="${TOUCHED_TEST_FILES[0]}"
+      TF_MANIFEST="$(nearest_manifest "$WT" "$FIRST_TF" || true)"
+      if [ -n "$TF_MANIFEST" ]; then
+        PF_PKGDIR="${TF_MANIFEST%/package.json}"; PF_PKGDIR="${PF_PKGDIR#$WT}"; PF_PKGDIR="${PF_PKGDIR#/}"
+        [ -n "$PF_PKGDIR" ] || PF_PKGDIR="."
+      else
+        PF_PKGDIR="."
+      fi
+      PF_HEAD_DIR="$WT"; [ "$PF_PKGDIR" = "." ] || PF_HEAD_DIR="$WT/$PF_PKGDIR"
+      PF_BASE_ABS_DIR="$WT_BASE"; [ "$PF_PKGDIR" = "." ] || PF_BASE_ABS_DIR="$WT_BASE/$PF_PKGDIR"
+
+      link_node_modules "$PF_HEAD_DIR" || true
+      link_node_modules "$PF_BASE_ABS_DIR" || true
+
+      for tf in "${TOUCHED_TEST_FILES[@]}"; do
+        [ -f "$WT/$tf" ] || continue
+        mkdir -p "$(dirname "$WT_BASE/$tf")"
+        cp "$WT/$tf" "$WT_BASE/$tf"
+      done
+
+      PF_HEAD_RUNNER="$(detect_runner "$PF_HEAD_DIR" || true)"
+      PF_BASE_RUNNER="$(detect_runner "$PF_BASE_ABS_DIR" || true)"
+
+      PF_REL_FILES=()
+      for tf in "${TOUCHED_TEST_FILES[@]}"; do
+        if [ "$PF_PKGDIR" = "." ]; then PF_REL_FILES+=("$tf"); else PF_REL_FILES+=("${tf#"$PF_PKGDIR"/}"); fi
+      done
+
+      if [ -z "$PF_HEAD_RUNNER" ] || [ -z "$PF_BASE_RUNNER" ]; then
+        PROVE_FIX_RESULT='"inconclusive"'
+      else
+        HR="${PF_HEAD_RUNNER%%$'\t'*}"; HB="${PF_HEAD_RUNNER#*$'\t'}"
+        BR="${PF_BASE_RUNNER%%$'\t'*}"; BB="${PF_BASE_RUNNER#*$'\t'}"
+        PF_HEAD_OK=true; PF_BASE_OK=true; PF_INCONCLUSIVE=false
+        for rf in "${PF_REL_FILES[@]}"; do
+          [ -f "$PF_HEAD_DIR/$rf" ] || continue
+          run_one_test_file "$PF_HEAD_DIR" "$HR" "$HB" "$rf" >/dev/null || PF_HEAD_OK=false
+          PF_BASE_OUT="$(run_one_test_file "$PF_BASE_ABS_DIR" "$BR" "$BB" "$rf")"; PF_BASE_RC=$?
+          [ "$PF_BASE_RC" -eq 0 ] || PF_BASE_OK=false
+          case "$PF_BASE_OUT" in
+            *"Cannot find module"*|*"MODULE_NOT_FOUND"*|*"SyntaxError"*|*"Cannot resolve"*) PF_INCONCLUSIVE=true ;;
+          esac
+        done
+        if [ "$PF_INCONCLUSIVE" = true ]; then
+          PROVE_FIX_RESULT='"inconclusive"'
+        elif [ "$PF_BASE_OK" = false ] && [ "$PF_HEAD_OK" = true ]; then
+          PROVE_FIX_RESULT='"proves"'
+        elif [ "$PF_BASE_OK" = true ] && [ "$PF_HEAD_OK" = true ]; then
+          PROVE_FIX_RESULT='"does_not_prove"'
+        else
+          PROVE_FIX_RESULT='"inconclusive"'
+        fi
+      fi
+    fi
+  fi
+fi
+
 if [ -n "$BASELINE_UNAVAILABLE_REASON" ]; then
   RESULT_SECTIONS+=("baseline: indisponível ($BASELINE_UNAVAILABLE_REASON)")
 fi
@@ -535,13 +621,15 @@ jq -n \
   --argjson test_files "$TEST_FILES_JSON" \
   --argjson packages "$PACKAGES_JSON" \
   --argjson worktree "$WORKTREE_JSON" \
+  --argjson prove_fix "$PROVE_FIX_RESULT" \
   '{
     deps: {status: $deps_status, reason: (if $deps_reason=="" then null else $deps_reason end)},
     typecheck: {status: $tc_status, reason: (if $tc_reason=="" then null else $tc_reason end)},
     lint: {status: $lint_status, reason: (if $lint_reason=="" then null else $lint_reason end)},
     test: {status: $test_status, reason: (if $test_reason=="" then null else $test_reason end), files: $test_files},
     packages: $packages,
-    worktree: $worktree
+    worktree: $worktree,
+    prove_fix: $prove_fix
   }' > "$RAW/checks.json"
 
 echo "verificações em: $RAW/checks-result.md"

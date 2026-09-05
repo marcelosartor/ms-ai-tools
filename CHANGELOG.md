@@ -21,6 +21,21 @@ vira uma tag git (`vX.Y.Z`).
 
 ### Adicionado
 
+- **`ms-codereview`: leitores independentes e refutador que executa.**
+  `prompts/reader.md` despacha três subagents em paralelo (lentes `spec`,
+  `correcao`, `checklist`) sobre o mesmo diff, com acesso ao worktree de
+  `--keep`; achados são mesclados (passo 6c), com marca `(2 leitores)`
+  quando duas lentes concordam. PR acima de 400 linhas ganha um leitor
+  `correcao` por diretório de primeiro nível; acima de 1500, revisão por
+  amostragem com os grupos não cobertos listados. O refutador
+  (`prompts/refute.md`) ganha `{{worktree}}` e pode escrever um teste de
+  até 30 linhas para reproduzir o cenário — `evidencia` de um
+  `CONFIRMADO` por execução começa com `executado:`; achado confirmado
+  mas de efeito abaixo do limiar de bloqueio é rebaixado para
+  `sugestão:`/`dúvida:` em vez de ficar `blocker:`. `run-checks.sh
+  --prove-fix` roda o teste tocado contra o código da base (sem o fix):
+  se passa nos dois lados, o teste não prova o bug e vira `sugestão:` no
+  relatório.
 - **`ms-codereview`: sinais baratos.** `raw/pr-comments.md` agora é lido —
   ponto já levantado por outro revisor e respondido não é reportado de
   novo. `gh pr checks` grava `raw/ci.json`/`raw/ci.md`; check vermelho é

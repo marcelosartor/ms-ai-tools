@@ -49,7 +49,14 @@ entre elas é um achado de natureza diferente.
 ## Procedimento
 
 1. **Dimensionar.** `git diff --stat` do range. Acima de ~400 linhas de
-   código não-mecânico, dizer isso ao usuário antes de qualquer análise.
+   código não-mecânico, avisar o usuário antes de qualquer análise, dividir
+   os arquivos em grupos por diretório de primeiro nível (`src/api`,
+   `src/db`...), com no máximo 400 linhas por grupo, e despachar um leitor
+   `correcao` **por grupo** além dos três leitores de sempre do passo 6b —
+   o leitor `correcao` global passa a olhar só os chamadores fora do diff,
+   não o diff grupo a grupo de novo. Acima de 1500 linhas, dizer que a
+   revisão é por amostragem, listar os grupos não cobertos e propor ao
+   usuário dividir o PR, sem parar a revisão por isso.
 
 2. **Coletar o contexto bruto.** Rodar `scripts/fetch-context.sh <alvo>` na
    raiz do repositório revisado. Ele grava PR, corpo, arquivos, comentários
@@ -94,7 +101,11 @@ entre elas é um achado de natureza diferente.
    typecheck e os testes que o diff tocou, por pacote (monorepo: um por
    `package.json` mais próximo), num worktree isolado, sem instalar nada.
    `--keep` mantém o worktree vivo depois do script sair — necessário para
-   o refutador poder executar código; removê-lo é o passo 12.
+   o refutador poder executar código; removê-lo é o passo 12. Quando o PR
+   toca ao menos um arquivo de teste **e** o ticket ou a descrição diz que
+   é correção de bug, acrescentar `--prove-fix`: `checks.json.prove_fix
+   == "does_not_prove"` vira `sugestão:` — "o teste passa sem o fix; não
+   cobre o bug".
    Ler `raw/checks-result.md`. Teste que falha é `blocker:` com o trecho
    da saída; typecheck que falha é `blocker:` — são resultado verificado,
    não inferência de leitura, exceto o que já falhava na `base_sha`
@@ -122,12 +133,37 @@ entre elas é um achado de natureza diferente.
    checklist (campo `variants` do mesmo `raw/checklists.json`); se
    `variants` não lista nada para ele, aplicar todas as seções.
 
+6b. **Despachar os leitores.** Três subagents em paralelo (`Agent`,
+    `general-purpose`), cada um com `prompts/reader.md` preenchido
+    (`{{lente}}` diferente para cada um: `spec`, `correcao`, `checklist`)
+    e acesso ao worktree de `--keep` (passo 5). `{{checklists}}` leva o
+    conteúdo já concatenado dos checklists de `load`, só as seções que
+    `variants` aplica. PR de até 150 linhas de código não-mecânico
+    dispensa o leitor `checklist` como subagent: o contexto principal já
+    aplicou o checklist no passo 6, como sempre. PR grande (passo 1)
+    acrescenta um leitor `correcao` por grupo de diretório.
+
+6c. **Mesclar.** Unir os achados dos leitores com os do contexto
+    principal — os passos 3 e 4 continuam rodando ali, no lugar de sempre,
+    porque são baratos; o que muda é que agora alimentam esta mesclagem
+    em vez de irem direto para o relatório. Dois achados são o mesmo
+    quando têm o mesmo
+    arquivo e a mesma âncora, ou linhas a até 3 de distância com o mesmo
+    cenário; fica o de maior severidade com a descrição mais concreta.
+    Achado presente em dois leitores ganha a marca `(2 leitores)` no
+    relatório — sinal de que duas lentes independentes chegaram ao
+    mesmo lugar. Ordenar: `blocker:` primeiro, depois `dúvida:` que pode
+    virar blocker, depois `sugestão:`, depois `nit:`; dentro de cada
+    grupo, por arquivo.
+
 7. **Passagem de segurança, se `raw/checklists.json` acionar.** Quando
    `security: true`, despachar um subagent (`Agent`, `general-purpose`)
    com `prompts/security.md` preenchido (`security_why`, `base`, `head`,
    `achados_existentes` — `arquivo:linha` já reportados até aqui, para o
    subagent não repetir — e `advisories` — conteúdo de
-   `raw/advisories.md`) e acesso ao repositório, antes de reportar. Os
+   `raw/advisories.md`) e acesso ao repositório, antes de reportar. Pode
+   ser despachado junto dos leitores do passo 6b, com
+   `achados_existentes` vazio — a deduplicação é a do passo 6c. Os
    achados dele entram na
    lista como qualquer outro — mesma calibragem, mesma barra de
    verificação, mesmo refutador do passo seguinte para todo `blocker:`. O

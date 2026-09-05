@@ -31,11 +31,21 @@ Ferramenta própria — não é adaptada de terceiro.
   discutível, nomenclatura e organização viram sugestão, não trava.
 - **Veredito mecânico.** *Aprovar* / *Aprovar com ressalvas* / *Rejeitar* sai
   de uma tabela ancorada na severidade dos achados, não de impressão geral.
-- **Segunda passagem com refutador independente.** Antes de entregar, relê
-  cada achado contra o código e descarta o que não se sustenta; todo
-  `blocker:` ainda passa por um subagent à parte, que não viu o relatório e
-  cuja única tarefa é tentar derrubar a afirmação. Falso positivo em PR de
-  terceiro custa a credibilidade de quem assina.
+- **Três leitores independentes, não um só.** `spec`, `correção` e
+  `checklist` leem o mesmo diff em paralelo, cada um só com sua lente —
+  o que um não vê, o outro pode ver; achado que os dois encontram entra
+  marcado `(2 leitores)`. PR grande (> 400 linhas) ainda ganha um leitor
+  `correção` por diretório de primeiro nível.
+- **Segunda passagem com refutador que executa código.** Antes de
+  entregar, relê cada achado contra o código e descarta o que não se
+  sustenta; todo `blocker:` ainda passa por um subagent à parte, que não
+  viu o relatório, tem acesso ao worktree do PR e pode escrever um teste
+  de até 30 linhas para tentar reproduzir o cenário em vez de só ler.
+  Falso positivo em PR de terceiro custa a credibilidade de quem assina.
+- **A alegação "o teste cobre o bug" é verificada.** Em correção de bug
+  que vem com teste, a skill roda esse teste contra o código de antes do
+  fix: se passa sem o fix, o teste não prova nada — vira sugestão, não
+  fica só na palavra do autor.
 - **Não posta nada.** Comentário e review só saem quando você mandar —
   inclusive o review inline pronto para postar (`review-<sha7>.json`),
   que `scripts/post-review.sh` recusa publicar se o PR mudou desde que
@@ -95,6 +105,7 @@ Estrutura final:
 │       ├── jira.sh
 │       └── github.sh          # sem variável de .env: usa o gh autenticado
 ├── prompts/
+│   ├── reader.md                 # três leitores independentes (spec/correção/checklist), em paralelo
 │   ├── refute.md                # subagent que tenta derrubar cada blocker
 │   └── security.md              # subagent de segurança, só quando acionado
 ├── checklists/
@@ -320,6 +331,13 @@ aqui (fora de escopo desta versão).
 `--keep` mantém o worktree do head vivo depois do script sair (caminho em
 `checks.json.worktree`); sem a flag, é removido ao sair. O worktree da
 base é sempre removido pelo próprio script.
+
+`--prove-fix`, quando o diff toca arquivo de teste: copia esse arquivo por
+cima do worktree da base (o código de produção continua sendo o da base,
+sem o fix) e roda lá. `checks.json.prove_fix`: `"proves"` (falhou na
+base, passa no head — o teste cobre o bug), `"does_not_prove"` (passa nos
+dois — vira sugestão no relatório), `"inconclusive"` (erro de compilação
+ou import na base), `null` (sem `--prove-fix`, ou nenhum teste tocado).
 
 Grava `raw/checks-result.md` (legível, com a saída de quem falhou, por
 pacote) e `raw/checks.json` (estruturado: resumo agregado no topo —

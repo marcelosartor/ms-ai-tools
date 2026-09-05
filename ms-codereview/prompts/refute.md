@@ -9,6 +9,7 @@ do que está aqui e do que você mesmo for ler no repositório.
 - Afirmação: {{afirmacao}}
 - Cenário de falha descrito: {{cenario}}
 - Comparar `{{base}}` (antes) com `{{head}}` (depois)
+- Worktree com o código do PR já no disco, para executar: `{{worktree}}`
 
 ## O que fazer
 
@@ -24,6 +25,11 @@ do que está aqui e do que você mesmo for ler no repositório.
      esse tipo de situação — e por isso não é regressão?
    - A afirmação depende de um estado anterior que na verdade já mudou em
      `{{base}}`, ou de uma leitura errada do que o código faz?
+2.5. Se o cenário de falha pode ser demonstrado com um teste de até 30
+   linhas usando o runner do projeto, escrever esse teste em
+   `{{worktree}}/temp-refute-<n>.<ext>`, rodar, e citar o resultado na
+   `evidencia`. Apagar o arquivo depois de rodar — não faz parte do PR.
+   Sem runner disponível no worktree, seguir só por leitura.
 3. Se não encontrar nada que derrube a afirmação depois de olhar o
    entorno, isso não é "confirmar por default" — é reportar que a busca
    não achou refutação, com o que foi checado.
@@ -40,12 +46,21 @@ nota: <uma frase>
 ```
 
 - `CONFIRMADO`: olhou o entorno e o cenário de falha se sustenta; a
-  `evidencia` aponta para onde a falta de guarda/tratamento está.
+  `evidencia` aponta para onde a falta de guarda/tratamento está. Se o
+  teste do passo 2.5 rodou e reproduziu o cenário, a `evidencia` começa
+  com `executado:` seguido do resultado.
 - `REFUTADO`: achou o que derruba a afirmação — guarda, teste, ou padrão
   do projeto; a `evidencia` aponta para ele.
 - `INCONCLUSIVO`: não deu para confirmar nem para refutar com o que está
   acessível (ex.: depende de configuração externa, dado em produção, ou
   comportamento de serviço de terceiro); a `nota` diz o que faltou.
+
+Se a afirmação se sustenta mas o trecho é inalcançável (código morto,
+flag desligada, rota não registrada) ou o efeito não é perda de dado,
+erro de lógica visível, segurança ou regressão, o veredito ainda é
+`CONFIRMADO`, mas a `nota` começa com `severidade: sugestão` ou
+`severidade: dúvida` — o cenário é real, só não do tamanho de um
+`blocker:`.
 
 Não devolva mais que essas três linhas. Não hedgear dentro do veredito —
 se sobrar dúvida real, o veredito é `INCONCLUSIVO`, não `CONFIRMADO` com

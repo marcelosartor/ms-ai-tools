@@ -27,15 +27,18 @@ quem escreveu o achado — carrega o mesmo viés. Para todo `blocker:` que
 sobreviver até aqui, despachar um subagent (`Agent`, `general-purpose`) com
 `prompts/refute.md` preenchido, um por blocker, em paralelo (até 8 por
 rodada; acima disso, agrupar achados do mesmo arquivo num único subagent).
-O subagent recebe acesso ao repositório e a `temp/cr/<alvo>/raw/`, mas
-**não** recebe o relatório inteiro — só o achado que vai testar, sem saber
-dos outros. A tarefa dele é tentar derrubar a afirmação, não confirmá-la.
+O subagent recebe acesso ao repositório, a `temp/cr/<alvo>/raw/` e ao
+worktree de `--keep` (passo 5) preenchido em `{{worktree}}` — pode
+escrever um teste de até 30 linhas ali para tentar reproduzir o cenário,
+em vez de confiar só na leitura. Mas **não** recebe o relatório inteiro —
+só o achado que vai testar, sem saber dos outros. A tarefa dele é tentar
+derrubar a afirmação, não confirmá-la.
 
 Aplicar o veredito do subagent:
 
 | veredito do refutador | efeito |
 |---|---|
-| `CONFIRMADO` | mantém `blocker:` |
+| `CONFIRMADO` | mantém `blocker:`. Se a `nota` começar com `severidade: sugestão` ou `severidade: dúvida` (cenário real, mas trecho inalcançável ou efeito abaixo do limiar de bloqueio), reclassificar para essa severidade em vez de manter `blocker:`, e registrar em `refuted.md` como `rebaixado` (`arquivo:linha`, afirmação, motivo da nota) |
 | `REFUTADO` | achado sai do relatório; registrar em `temp/cr/<alvo>/refuted.md` (`arquivo:linha`, afirmação, evidência da refutação) para auditoria |
 | `INCONCLUSIVO` | vira `dúvida:`, com a `nota` do refutador anexada |
 
