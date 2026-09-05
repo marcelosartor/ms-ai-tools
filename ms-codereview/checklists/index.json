@@ -60,5 +60,21 @@
       "room": {"manifest": {"files": ["build.gradle.kts", "build.gradle", "libs.versions.toml"], "pattern": "androidx\\.room|room-runtime", "ext": [".kt"]}, "content": ["@Dao", "@Database\\(", "RoomDatabase"]},
       "hilt": {"content": ["@HiltViewModel", "@AndroidEntryPoint", "@InstallIn"]}
     }
+  },
+  "java-spring": {
+    "paths": ["**/*.java", "**/src/main/resources/application*.y*ml",
+              "**/src/main/resources/application*.properties", "**/pom.xml",
+              "**/src/main/resources/db/migration/**", "**/src/main/resources/db/changelog/**"],
+    "manifest": {"files": ["pom.xml", "build.gradle.kts", "build.gradle", "libs.versions.toml"],
+                 "pattern": "spring-boot|springframework",
+                 "ext": [".java", ".kt"]},
+    "content": ["@SpringBootApplication", "@RestController", "@Service\\b", "@Repository\\b",
+                "@Transactional", "org\\.springframework", "jakarta\\.persistence"],
+    "variants": {
+      "jpa": {"manifest": {"files": ["pom.xml", "build.gradle.kts", "build.gradle", "libs.versions.toml"], "pattern": "spring-boot-starter-data-jpa|hibernate", "ext": [".java", ".kt"]}, "content": ["jakarta\\.persistence", "JpaRepository"]},
+      "security": {"manifest": {"files": ["pom.xml", "build.gradle.kts", "build.gradle", "libs.versions.toml"], "pattern": "spring-boot-starter-security|spring-security", "ext": [".java", ".kt"]}, "content": ["@PreAuthorize", "SecurityFilterChain", "HttpSecurity"]},
+      "webflux": {"manifest": {"files": ["pom.xml", "build.gradle.kts", "build.gradle", "libs.versions.toml"], "pattern": "spring-boot-starter-webflux", "ext": [".java", ".kt"]}, "content": ["Mono<", "Flux<"]},
+      "messaging": {"manifest": {"files": ["pom.xml", "build.gradle.kts", "build.gradle", "libs.versions.toml"], "pattern": "spring-kafka|spring-boot-starter-amqp|spring-cloud-stream", "ext": [".java", ".kt"]}, "content": ["@KafkaListener", "@RabbitListener"]}
+    }
   }
 }

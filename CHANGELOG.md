@@ -21,6 +21,14 @@ vira uma tag git (`vX.Y.Z`).
 
 ### Adicionado
 
+- **`ms-codereview`: checklist `java-spring`.** Java 25 LTS (records,
+  sealed/pattern matching, virtual threads, `StructuredTaskScope`) e
+  Spring Boot 4/Framework 7 (com nota onde o Boot 3.x difere): camadas,
+  beans e transação (`@Transactional` fora do proxy, `open-in-view`),
+  contratos web, configuração e segurança de plataforma (actuator,
+  `ddl-auto`), mais `JPA/Hibernate`, `Spring Security`, `WebFlux` e
+  `Mensageria` por variante. Kotlin com Spring carrega pelo `manifest`
+  com `ext: .kt`, sem carregar `android-kotlin` junto.
 - **`ms-codereview`: checklist `android-kotlin`.** Kotlin, Coroutines/
   Flow, arquitetura (MVVM/UDF), ciclo de vida e plataforma (permissões,
   edge-to-edge, predictive back), rede e dados, segurança

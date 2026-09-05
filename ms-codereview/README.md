@@ -117,7 +117,8 @@ Estrutura final:
 │   ├── frontend-vue.md
 │   ├── frontend-react.md
 │   ├── database-postgres-pgvector.md
-│   └── android-kotlin.md          # Compose, Views, Room, Hilt por variante
+│   ├── android-kotlin.md          # Compose, Views, Room, Hilt por variante
+│   └── java-spring.md             # JPA, Spring Security, WebFlux, mensageria por variante
 └── tests/
     ├── run.sh                  # bash ms-codereview/tests/run.sh
     └── f*.sh                   # um arquivo por feature, carregados pelo run.sh
