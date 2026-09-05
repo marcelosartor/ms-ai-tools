@@ -127,7 +127,16 @@ entre elas é um achado de natureza diferente.
    construindo. Teste ausente onde havia regra de negócio nova, ou teste
    sem asserção, são achados.
 
-5. **Aplicar os checklists.** Quais carregar não é julgamento: ler
+5. **Rodar o que for barato.** `scripts/run-checks.sh <alvo>` roda
+   typecheck e os testes que o diff tocou num worktree isolado, sem
+   instalar nada. Ler `raw/checks-result.md`. Teste que falha é `blocker:`
+   com o trecho da saída; typecheck que falha é `blocker:` — são resultado
+   verificado, não inferência de leitura. Lint que falha **não** é achado
+   (já coberto por "Não reportar"). O relatório ganha uma linha depois da
+   contagem, ex.: `verificações: typecheck ok · 3 testes ok · lint não
+   rodou (sem script)`.
+
+6. **Aplicar os checklists.** Quais carregar não é julgamento: ler
    `raw/checklists.json` (campo `load`), gerado por
    `scripts/detect-checklists.sh` a partir do diff — mesmo diff, mesmo
    conjunto, toda vez. Cada nome em `load` é o arquivo
@@ -137,16 +146,16 @@ entre elas é um achado de natureza diferente.
    achado — só significa que o diff não tocou nenhuma camada com
    checklist.
 
-6. **Verificar antes de reportar.** Ver a barra de verificação abaixo.
+7. **Verificar antes de reportar.** Ver a barra de verificação abaixo.
 
-7. **Reportar** no formato descrito abaixo.
+8. **Reportar** no formato descrito abaixo.
 
-8. **Recomendar e rascunhar o comentário.** Sempre, mesmo quando o
+9. **Recomendar e rascunhar o comentário.** Sempre, mesmo quando o
    relatório não teve nenhum achado.
 
-9. **Revisar a própria revisão** antes de entregar. Ver "Segunda passagem".
+10. **Revisar a própria revisão** antes de entregar. Ver "Segunda passagem".
 
-10. **Gravar o relatório da rodada**, para a próxima revisão deste mesmo
+11. **Gravar o relatório da rodada**, para a próxima revisão deste mesmo
     alvo poder ser incremental. Ver "Re-review incremental".
 
 ## Re-review incremental
@@ -170,9 +179,9 @@ mas os dois divergem** (o mesmo alvo mudou desde a última rodada): modo
 incremental.
 
 - Ler o bloco de achados do `previous_report`.
-- Rodar os passos 3–6 do procedimento (as quatro perguntas, testes,
-  checklists) só sobre `git diff <previous_sha>..<head_sha>` — o delta, não
-  o PR inteiro.
+- Rodar os passos 3–7 do procedimento (as quatro perguntas, testes,
+  verificações, checklists) só sobre `git diff <previous_sha>..<head_sha>`
+  — o delta, não o PR inteiro.
 - Para cada achado da rodada anterior, reabrir o `arquivo:linha` no `head`
   atual e classificar:
 
@@ -214,7 +223,11 @@ legibilidade, oportunidade de refatoração. Estes viram sugestão.
 
 ## Não reportar
 
-- Qualquer coisa coberta por lint, formatter ou checagem de tipo do CI
+- Qualquer coisa coberta por lint, formatter ou checagem de tipo do CI —
+  isto é sobre inferir esse tipo de problema lendo o código; typecheck que
+  a skill roda de verdade (passo 5, "Rodar o que for barato") é resultado
+  verificado, não inferência, e por isso é `blocker:` mesmo assim. Lint
+  executado continua fora do relatório mesmo quando falha
 - Arquivos gerados, `*.lock`, `dist/`, `coverage/`
 - Padrão arquitetural já adotado no projeto
 - Falta de teste em código que não é regra de negócio

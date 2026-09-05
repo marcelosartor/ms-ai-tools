@@ -17,6 +17,12 @@ vira uma tag git (`vX.Y.Z`).
   reduzida por tipo.
 - `ms-codereview/tests/run.sh`: primeiro harness de testes da skill, bash
   puro, com os casos do PR mecânico.
+- `ms-codereview`: `scripts/run-checks.sh` roda typecheck e os testes que
+  o diff tocou, num worktree isolado (nunca mexe no working tree do
+  usuário, nunca roda `npm install` — reaproveita `node_modules` via
+  symlink quando o diff não altera dependências). Teste e typecheck que
+  falham viram `blocker:` no relatório; lint continua fora, coberto pela
+  regra de não reportar o que o CI já cobre.
 - `ms-codereview`: review inline pronto para postar — junto do rascunho de
   comentário, a skill grava `temp/cr/<pr>/review-<sha7>.json` no formato
   de review do GitHub (`comments[]` com `path`/`line`/`body`);

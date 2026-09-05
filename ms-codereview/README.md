@@ -43,6 +43,10 @@ Ferramenta própria — não é adaptada de terceiro.
 - **Re-review incremental.** Depois de o autor empurrar commits, a
   próxima rodada revisa só o delta e diz o que foi resolvido, o que
   continua aberto e o que é novo — não recomeça do zero.
+- **Roda o que for barato.** Typecheck e os testes que o diff tocou rodam
+  de verdade, num worktree isolado que nunca mexe no seu working tree e
+  nunca instala dependência — falha vira `blocker:` verificado, não
+  inferido pela leitura.
 
 ## Instalação
 
@@ -75,6 +79,7 @@ Estrutura final:
 ├── scripts/
 │   ├── fetch-context.sh        # coleta PR + ticket
 │   ├── detect-checklists.sh    # decide quais checklists carregar, pelo diff
+│   ├── run-checks.sh           # typecheck + testes tocados, num worktree isolado
 │   ├── post-review.sh          # publica o review inline — só a pedido do usuário
 │   └── providers/
 │       ├── clickup.sh
@@ -92,7 +97,8 @@ Estrutura final:
     ├── f7.sh                   # casos por feature, carregados pelo run.sh
     ├── f5.sh
     ├── f3.sh
-    └── f4.sh
+    ├── f4.sh
+    └── f2.sh
 
 ~/.config/ms-ai-tools/
 ├── .env                        # suas credenciais, fora da skill
@@ -267,6 +273,28 @@ Cada revisão devolve três blocos, nesta ordem:
    no idioma do PR e sem o jargão de severidade da skill. Junto, a skill
    grava `temp/cr/<pr>/review-<sha7>.json` no formato de review inline do
    GitHub (`comments[]` com `path`/`line`/`body`).
+
+## Verificações (typecheck e testes)
+
+```bash
+scripts/run-checks.sh 158
+```
+
+Cria um worktree isolado no `head_sha` — nunca mexe no seu working tree —,
+reaproveita `node_modules` já instalado via symlink quando o diff não
+altera dependências (nunca roda `npm install`), detecta `typecheck`/`lint`
+em `package.json` (ou `tsc --noEmit` direto, se houver `tsconfig.json` e
+`typescript` instalado) e o runner de teste (`vitest` ou `jest`) em
+`node_modules/.bin`. Roda só os arquivos de teste que o diff tocou, mais os
+que importam algum arquivo tocado.
+
+Grava `raw/checks-result.md` (legível, com a saída de quem falhou) e
+`raw/checks.json` (estruturado). Teste e typecheck que falham são
+`blocker:` no relatório da skill; lint que falha, não — cai na regra de não
+reportar o que já é coberto por lint do CI.
+
+Sai `0` se tudo que rodou passou (mesmo que nada tenha rodado), `1` se algo
+falhou, `2` se não conseguiu montar o worktree.
 
 ## Publicar o review
 
