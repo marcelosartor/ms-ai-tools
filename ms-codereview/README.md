@@ -1,10 +1,13 @@
 # ms-codereview v0.3.0
 
+## Descrição
+
 Revisão de pull request de terceiros para o Claude Code: cruza o ticket, a
 descrição do PR e o diff, e fecha com um veredito e um rascunho de
 comentário pronto para colar.
 
-Faz parte do pool [ms-ai-tools](../README.md). A versão da skill fica em
+Faz parte do pool [ms-ai-tools](../README.md), na etapa de revisão do
+workflow de Spec-Driven Development. A versão da skill fica em
 `metadata.version` no `SKILL.md`, e o instalador mostra a transição ao
 atualizar.
 
@@ -13,6 +16,8 @@ muitas vezes não conhece o projeto a fundo. Por isso ela exige saber o que o
 PR **deveria** fazer antes de julgar o que ele faz, e por isso é agnóstica a
 projeto e a cliente: o que sabe do domínio vem do `CLAUDE.md` do repositório
 revisado e do ticket, nunca de regra embutida aqui.
+
+Ferramenta própria — não é adaptada de terceiro.
 
 ## O que ela faz de diferente
 
