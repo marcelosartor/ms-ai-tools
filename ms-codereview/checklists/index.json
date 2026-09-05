@@ -1,0 +1,18 @@
+{
+  "backend-node-nest": {
+    "paths": ["**/*.controller.ts", "**/*.service.ts", "**/*.module.ts", "**/*.guard.ts", "**/*.interceptor.ts"],
+    "deps": ["@nestjs/core"]
+  },
+  "frontend-vue": {
+    "paths": ["**/*.vue"],
+    "deps": ["vue", "quasar", "vuetify"]
+  },
+  "frontend-react": {
+    "paths": ["**/*.tsx", "**/*.jsx"],
+    "deps": ["react"]
+  },
+  "database-postgres-pgvector": {
+    "paths": ["**/migrations/**", "**/migration/**", "**/*.sql", "**/schema.prisma", "**/drizzle/**"],
+    "content": ["vector\\(", "<=>", "<->", "<#>", "embedding", "pgvector", "CREATE INDEX", "ALTER TABLE"]
+  }
+}

@@ -125,12 +125,15 @@ entre elas é um achado de natureza diferente.
    construindo. Teste ausente onde havia regra de negócio nova, ou teste
    sem asserção, são achados.
 
-5. **Aplicar os checklists.** Carregar apenas o que o diff tocar:
-   - Backend Node/NestJS: `checklists/backend-node-nest.md`
-   - Frontend Vue/Quasar/Vuetify: `checklists/frontend-vue.md`
-   - Frontend React/Vite/Tailwind/shadcn: `checklists/frontend-react.md`
-   - PostgreSQL/pgvector (migration, schema, query, embedding):
-     `checklists/database-postgres-pgvector.md`
+5. **Aplicar os checklists.** Quais carregar não é julgamento: ler
+   `raw/checklists.json` (campo `load`), gerado por
+   `scripts/detect-checklists.sh` a partir do diff — mesmo diff, mesmo
+   conjunto, toda vez. Cada nome em `load` é o arquivo
+   `checklists/<nome>.md`. O relatório ganha uma linha citando o motivo de
+   cada checklist carregado, vindo do campo `why` (ex.: `checklist:
+   frontend-react (paths: src/pages/Search.tsx)`). `load` vazio não é
+   achado — só significa que o diff não tocou nenhuma camada com
+   checklist.
 
 6. **Verificar antes de reportar.** Ver a barra de verificação abaixo.
 

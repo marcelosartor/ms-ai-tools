@@ -17,6 +17,11 @@ vira uma tag git (`vX.Y.Z`).
   reduzida por tipo.
 - `ms-codereview/tests/run.sh`: primeiro harness de testes da skill, bash
   puro, com os casos do PR mecânico.
+- `ms-codereview`: detecção determinística de checklist —
+  `scripts/detect-checklists.sh` decide, a partir do diff e de
+  `checklists/index.json` (dado, não código), quais checklists carregar e
+  grava o motivo em `raw/checklists.json`. Mesmo diff, mesmo conjunto,
+  toda vez; antes dependia de julgamento na hora.
 
 ## [0.5.0] - 2026-09-05
 

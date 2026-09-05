@@ -194,7 +194,10 @@ if printf '%s' "$TARGET" | grep -qE '^[0-9]+$' && command -v gh >/dev/null 2>&1;
   fi
 fi
 
-# ---------- 2.5 classificação de PR mecânico ----------
+# ---------- 2.5 detecção de checklists (independe de ticket/mecânico) ----------
+"$SKILL_DIR/scripts/detect-checklists.sh" "$TARGET" >/dev/null || echo "aviso: detecção de checklists falhou" >&2
+
+# ---------- 2.6 classificação de PR mecânico ----------
 # Bump de dependência, formatação, rename e doc não têm ticket e não
 # precisam: a própria mudança é a spec. base/head do diff vêm do PR (quando
 # há) ou do range passado como alvo (ex.: main...HEAD); alvo que não é um
@@ -228,7 +231,10 @@ if [ -n "$DIFF_BASE_SHA" ] && [ -n "$DIFF_HEAD_SHA" ]; then
   NAME_STATUS="$(git -C "$BASE_DIR" diff --name-status -M90% "$DIFF_RANGE" 2>/dev/null || true)"
 
   if [ -n "$NAME_STATUS" ]; then
-    mapfile -t DIFF_PATHS < <(printf '%s\n' "$NAME_STATUS" | awk -F'\t' '{print $NF}')
+    DIFF_PATHS=()
+    while IFS= read -r diff_path; do
+      [ -n "$diff_path" ] && DIFF_PATHS+=("$diff_path")
+    done < <(printf '%s\n' "$NAME_STATUS" | awk -F'\t' '{print $NF}')
 
     # deps: só arquivo de dependência, e no package.json só mudou valor
     # dentro de dependencies/devDependencies/peerDependencies (comparação

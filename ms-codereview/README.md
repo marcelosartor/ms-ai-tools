@@ -66,17 +66,20 @@ Estrutura final:
 ├── .env.example
 ├── scripts/
 │   ├── fetch-context.sh        # coleta PR + ticket
+│   ├── detect-checklists.sh    # decide quais checklists carregar, pelo diff
 │   └── providers/
 │       ├── clickup.sh
 │       └── jira.sh
-├── checklists/                  # carregam só se o diff tocar na camada
-│   ├── backend-node-nest.md
+├── checklists/
+│   ├── index.json               # regras de detecção (dado, não código)
+│   ├── backend-node-nest.md      # carregam só se o diff tocar na camada
 │   ├── frontend-vue.md
 │   ├── frontend-react.md
 │   └── database-postgres-pgvector.md
 └── tests/
     ├── run.sh                  # bash ms-codereview/tests/run.sh
-    └── f7.sh                   # casos por feature, carregados pelo run.sh
+    ├── f7.sh                   # casos por feature, carregados pelo run.sh
+    └── f5.sh
 
 ~/.config/ms-ai-tools/
 ├── .env                        # suas credenciais, fora da skill
@@ -207,6 +210,7 @@ Grava em `temp/cr/<pr>/raw/`, dentro do repositório revisado:
 | `ticket.md` | o ticket em Markdown — mesmo formato para todo tracker |
 | `ticket.json`, `ticket-comments.json` | resposta crua da API |
 | `context-status.json` | o que deu certo, o tracker usado, se o PR é mecânico e o motivo do que faltou |
+| `checklists.json` | quais checklists carregar e por quê — gerado sempre, independente do ticket |
 
 PR mecânico (bump de dependência, formatação, rename, doc) dispensa ticket:
 o script classifica sozinho pelo diff (`mechanical`/`mechanical_kind` em
@@ -272,8 +276,24 @@ Regra que só vale para um cliente ou um projeto não entra aqui: ela vive no
 `CLAUDE.md` daquele repositório, que já tem precedência sobre este checklist.
 
 O `SKILL.md` carrega inteiro quando a skill é acionada; os checklists só
-carregam se o diff tocar naquela camada. Por isso vale manter o `SKILL.md`
-enxuto e engordar os checklists.
+carregam se o diff tocar naquela camada — decidido por
+`scripts/detect-checklists.sh` a partir de `checklists/index.json`, não por
+julgamento na hora. Por isso vale manter o `SKILL.md` enxuto e engordar os
+checklists.
+
+### Adicionar um checklist novo
+
+Criar `checklists/<nome>.md` e uma entrada em `checklists/index.json` com
+pelo menos uma destas chaves:
+
+| Chave | Casa quando |
+|---|---|
+| `paths` | algum arquivo do diff bate com o glob (`**/` no início também casa sem prefixo de diretório) |
+| `deps` | a dependência está em `dependencies`/`devDependencies` do `package.json` da raiz, e o diff toca algum `.ts`/`.tsx`/`.js`/`.jsx`/`.vue` |
+| `content` | a regex (ERE, case-insensitive) aparece numa linha adicionada do diff |
+
+Qualquer uma basta; não precisa das três. `index.json` é dado, não código —
+adicionar checklist não toca `detect-checklists.sh`.
 
 ### Adicionar um tracker novo
 
