@@ -197,7 +197,7 @@ Credencial existente nunca é sobrescrita nem descartada.
 
 | Ferramenta | Etapa do SDD | Versão | Comando | Credenciais |
 |---|---|---|---|---|
-| **[ms-codereview](ms-codereview/README.md)** | Revisão | 0.4.0 | `/ms-codereview` | ClickUp **ou** Jira |
+| **[ms-codereview](ms-codereview/README.md)** | Revisão | 0.5.0 | `/ms-codereview` | ClickUp **ou** Jira |
 | **ms-prd-generator** | Especificação | (Em Desenvolvimento) | — | — |
 | **ms-harness-generator** | Planejamento | (Em Desenvolvimento) | — | — |
 

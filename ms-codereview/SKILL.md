@@ -3,7 +3,7 @@ name: ms-codereview
 description: Revisa um pull request de terceiros com critério calibrado para bloquear apenas correção, segurança e dados, e fecha com uma recomendação de aprovar ou rejeitar mais um rascunho de comentário para o PR. Use quando o usuário pedir para revisar um PR, fazer code review, analisar um diff antes de aprovar, ou perguntar se deve aprovar ou rejeitar uma mudança. Aceita número de PR, nome de branch ou range de refs como argumento.
 license: Apache-2.0
 metadata:
-  version: 0.4.0
+  version: 0.5.0
 ---
 
 # Revisão de pull request
@@ -35,6 +35,7 @@ buscar o ticket:
 scripts/fetch-context.sh 158                       # id do ticket vem do corpo do PR ou da branch
 scripts/fetch-context.sh 158 --task DEV-142        # quando não der para descobrir sozinho
 scripts/fetch-context.sh 158 --provider jira       # quando o formato do id for ambíguo
+scripts/fetch-context.sh 158 --spec-file docs/specs/refund.md  # sem tracker: arquivo local vira o contexto
 ```
 
 O script fala com o tracker configurado — ClickUp ou Jira — e grava o
@@ -42,11 +43,22 @@ ticket sempre nos mesmos arquivos (`raw/ticket.md`), qualquer que seja ele.
 Descobre o tracker sozinho pelo formato do id; `--provider` só é necessário
 quando erra. As credenciais ficam em `.env` na raiz desta skill (modelo em
 `.env.example`). Nunca colar credencial em comando nem citá-la no relatório.
+Provider sem credencial configurada nem é tentado na descoberta automática —
+só entra na jogada se `--provider` pedir por ele explicitamente.
+
+Sem tracker, ou quando o usuário indicar um documento em vez de um ticket:
+`--spec-file <caminho>` usa esse arquivo como fonte do contexto, sem tocar
+em tracker nenhum. Só roda quando o parâmetro é passado explicitamente —
+não existe busca automática em diretório de specs, porque não há como casar
+PR e arquivo sem risco de pegar o errado; se o usuário não indicar o
+arquivo, pular esse passo e seguir para o caminho do ticket ou para a
+rejeição por falta de dados.
 
 Saídas do script: `0` contexto obtido, `3` id do ticket não encontrado, `4`
-credencial ausente, `5` o tracker recusou. Em `3`, `4` ou `5`, tentar uma
-vez o caminho manual — perguntar o id ao usuário, ou ler o ticket pelo MCP
-do tracker se estiver conectado.
+credencial ausente ou nenhum tracker configurado, `5` o tracker recusou. Em
+`3`, `4` ou `5`, tentar uma vez o caminho manual — perguntar o id ao
+usuário, pedir o caminho do documento de spec, ou ler o ticket pelo MCP do
+tracker se estiver conectado.
 
 **Se ainda assim não for possível estabelecer o que o PR deveria fazer, a
 revisão para aqui: rejeitar por falta de dados.** Não inferir a intenção a

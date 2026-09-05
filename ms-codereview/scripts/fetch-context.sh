@@ -5,18 +5,24 @@
 #   scripts/fetch-context.sh <pr>                      # PR do GitHub + ticket do tracker
 #   scripts/fetch-context.sh <pr> --task ABC-123       # força o id do ticket
 #   scripts/fetch-context.sh <pr> --provider jira      # força o tracker
+#   scripts/fetch-context.sh <pr> --spec-file docs/specs/checkout.md  # sem tracker: usa este arquivo como contexto
 #   scripts/fetch-context.sh main...HEAD               # sem PR; só tenta o ticket pela branch
 #
 # Grava tudo em <base>/temp/cr/<pr>/raw/ (base = $CR_BASE_DIR ou o diretório atual).
-# O ticket sai sempre nos mesmos arquivos, seja qual for o tracker:
-# raw/ticket.md, raw/ticket.json, raw/ticket-comments.json.
+# O ticket sai sempre nos mesmos arquivos, seja qual for a fonte (tracker ou
+# --spec-file): raw/ticket.md, raw/ticket.json, raw/ticket-comments.json.
 # Não imprime credencial em nenhuma hipótese.
+#
+# --spec-file só roda quando passado explicitamente: sem ele, este passo nem
+# existe. Não pode ser combinado com --task/--provider. Providers de tracker
+# sem credencial configurada nem são tentados no modo automático.
 #
 # Códigos de saída:
 #   0  contexto completo (PR e/ou ticket obtidos)
 #   2  erro de uso
 #   3  não foi possível descobrir o id do ticket
-#   4  credencial do tracker ausente (crie o .env na raiz da skill)
+#   4  credencial do tracker ausente (crie o .env na raiz da skill), ou
+#      nenhum tracker configurado
 #   5  a API do tracker recusou ou não devolveu o ticket
 #
 # 3, 4 e 5 são "faltou dado", não "deu ruim": quem chama decide o que fazer.
@@ -34,16 +40,18 @@ CRED_FILE="$CONFIG_DIR/.env"
 if [ -d "$CONFIG_DIR/bin" ]; then PATH="$CONFIG_DIR/bin:$PATH"; fi
 
 usage() {
-  sed -n '3,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '3,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 TARGET=""
 TASK_OVERRIDE=""
 PROVIDER_OVERRIDE=""
+SPEC_FILE_OVERRIDE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --task) TASK_OVERRIDE="${2:-}"; shift 2 ;;
     --provider) PROVIDER_OVERRIDE="${2:-}"; shift 2 ;;
+    --spec-file) SPEC_FILE_OVERRIDE="${2:-}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     -*) echo "opção desconhecida: $1" >&2; usage >&2; exit 2 ;;
     *) TARGET="$1"; shift ;;
@@ -51,6 +59,16 @@ while [ $# -gt 0 ]; do
 done
 
 [ -n "$TARGET" ] || { echo "informe o número do PR ou o range de refs" >&2; exit 2; }
+
+if [ -n "$SPEC_FILE_OVERRIDE" ] && { [ -n "$TASK_OVERRIDE" ] || [ -n "$PROVIDER_OVERRIDE" ]; }; then
+  echo "--spec-file não pode ser combinado com --task/--provider" >&2
+  exit 2
+fi
+
+if [ -n "$SPEC_FILE_OVERRIDE" ] && [ ! -r "$SPEC_FILE_OVERRIDE" ]; then
+  echo "arquivo de --spec-file não encontrado ou sem permissão de leitura: $SPEC_FILE_OVERRIDE" >&2
+  exit 2
+fi
 
 for bin in jq curl; do
   command -v "$bin" >/dev/null 2>&1 || {
@@ -169,7 +187,25 @@ if printf '%s' "$TARGET" | grep -qE '^[0-9]+$' && command -v gh >/dev/null 2>&1;
   fi
 fi
 
-# ---------- 3. tracker e id do ticket ----------
+# ---------- 3. contexto do "ticket": --spec-file, ou tracker ----------
+
+# Fonte explícita: só roda quando --spec-file é passado. Sem tracker, sem
+# autodetecção de id — o arquivo indicado é o contexto, ponto final.
+if [ -n "$SPEC_FILE_OVERRIDE" ]; then
+  PROVIDER="local"
+  TASK_ID="$SPEC_FILE_OVERRIDE"
+  {
+    printf '# Contexto local\n\n'
+    printf -- '- tracker: arquivo local\n'
+    printf -- '- caminho: %s\n\n' "$SPEC_FILE_OVERRIDE"
+    printf '## Conteúdo\n\n'
+    cat "$SPEC_FILE_OVERRIDE"
+  } > "$RAW/ticket.md"
+  TASK_OK=true
+  write_status
+  exit 0
+fi
+
 context_text() {
   [ ! -f "$RAW/pr.json" ] || jq -r '(.body // "") + "\n" + (.headRefName // "")' "$RAW/pr.json"
   git -C "$BASE_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true
@@ -184,10 +220,34 @@ if [ "$PROVIDER" != "auto" ]; then
   esac
 fi
 
+# Sem credencial, nem tenta: no modo automático, restringe a busca do id aos
+# providers com credencial configurada. Um --provider explícito é pedido
+# direto do usuário e é sempre tentado, mesmo sem credencial — aí o erro
+# específico sai no passo 4.
+if [ "$PROVIDER" = "auto" ]; then
+  CANDIDATES=""
+  for p in $PROVIDERS; do
+    if "${p}_credentials" >/dev/null 2>&1; then
+      CANDIDATES="$CANDIDATES $p"
+    fi
+  done
+  CANDIDATES="${CANDIDATES# }"
+  REASON=""
+
+  if [ -z "$CANDIDATES" ]; then
+    PROVIDER=""
+    REASON="nenhum tracker configurado (nenhuma credencial em $CRED_FILE); configure um provider ou force com --provider <$(printf '%s' "$PROVIDERS" | tr ' ' '|')>"
+    write_status
+    exit 4
+  fi
+else
+  CANDIDATES="$PROVIDER"
+fi
+
 if [ -n "$TASK_OVERRIDE" ]; then
   TASK_ID="$TASK_OVERRIDE"
   if [ "$PROVIDER" = "auto" ]; then
-    for p in $PROVIDERS; do
+    for p in $CANDIDATES; do
       if "${p}_id_matches" "$TASK_ID"; then PROVIDER="$p"; break; fi
     done
   fi
@@ -197,7 +257,7 @@ else
   # solta no texto, slug de branch), para não confundir os formatos.
   for pass in strong weak; do
     [ -z "$TASK_ID" ] || break
-    for p in $PROVIDERS; do
+    for p in $CANDIDATES; do
       [ "$PROVIDER" = "auto" ] || [ "$PROVIDER" = "$p" ] || continue
       TASK_ID="$(printf '%s' "$TEXT" | "${p}_extract" "$pass" || true)"
       if [ -n "$TASK_ID" ]; then PROVIDER="$p"; break; fi
@@ -214,7 +274,7 @@ fi
 
 if [ "$PROVIDER" = "auto" ]; then
   PROVIDER=""
-  REASON="id '$TASK_ID' não corresponde ao formato de nenhum tracker suportado; rode de novo com --provider <$(printf '%s' "$PROVIDERS" | tr ' ' '|')>"
+  REASON="id '$TASK_ID' não corresponde ao formato de nenhum tracker com credencial configurada; rode de novo com --provider <$(printf '%s' "$PROVIDERS" | tr ' ' '|')>"
   write_status
   exit 3
 fi

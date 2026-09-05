@@ -1,4 +1,4 @@
-# ms-codereview v0.4.0
+# ms-codereview v0.5.0
 
 ## Descrição
 
@@ -146,7 +146,13 @@ relatório e nunca passa pela linha de comando — as credenciais vão para o `c
 aparecem em `ps`.
 
 Sem credencial a skill ainda revisa PRs cuja descrição já explica o esperado
-— mas rejeita por falta de dados os que não explicam.
+— mas rejeita por falta de dados os que não explicam. Provider sem
+credencial nem é tentado na descoberta automática do tracker.
+
+Sem tracker nenhum — ou quando o contexto vem de um documento de spec em vez
+de ticket — `--spec-file <caminho>` aponta o arquivo a usar como contexto.
+Só roda quando passado; não há busca automática em pasta de specs, ver
+"Contexto coletado" abaixo.
 
 ### Como o tracker é escolhido
 
@@ -175,8 +181,18 @@ chama sozinha, mas ele roda à mão para depurar:
 scripts/fetch-context.sh 158                    # PR + ticket descoberto sozinho
 scripts/fetch-context.sh 158 --task DEV-142     # força o id do ticket
 scripts/fetch-context.sh 158 --provider jira    # força o tracker
+scripts/fetch-context.sh 158 --spec-file docs/specs/refund.md  # sem tracker: arquivo local
 scripts/fetch-context.sh --help
 ```
+
+`--spec-file` é o caminho para quem não usa ClickUp nem Jira: aponta um
+arquivo (PRD, spec, ata de reunião — qualquer Markdown ou texto) para virar
+o contexto da revisão, gravado no mesmo `raw/ticket.md` que um tracker
+geraria. Só roda quando passado explicitamente — sem ele, a skill nem tenta
+esse caminho — e não pode ser combinado com `--task`/`--provider`. Não há
+descoberta automática de qual arquivo usar dentro de um diretório: o
+casamento entre PR e documento é ambíguo sem uma convenção de nome
+garantida, e adivinhar errado é pior que não ter contexto nenhum.
 
 Grava em `temp/cr/<pr>/raw/`, dentro do repositório revisado:
 
@@ -197,9 +213,9 @@ onde o `temp/` é criado.
 | Código | Significado | O que fazer |
 |---|---|---|
 | `0` | contexto obtido | — |
-| `2` | erro de uso, ou `jq`/`curl` ausente | ver `--help`; para o `jq`, rodar o instalador com `--deps` |
+| `2` | erro de uso, `jq`/`curl` ausente, ou `--spec-file` inválido/combinado com `--task`/`--provider` | ver `--help`; para o `jq`, rodar o instalador com `--deps` |
 | `3` | id do ticket não encontrado | rodar de novo com `--task <id>` |
-| `4` | credencial do tracker ausente | preencher o `.env` |
+| `4` | credencial do tracker ausente, ou nenhum tracker configurado | preencher o `.env`, forçar `--provider`, ou usar `--spec-file` |
 | `5` | o tracker recusou ou não devolveu o ticket | conferir o id, o token e o `reason` em `context-status.json` |
 
 `3`, `4` e `5` são "faltou dado", não "deu ruim": a skill tenta o caminho
