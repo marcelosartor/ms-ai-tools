@@ -116,7 +116,10 @@ Estrutura final:
 │   ├── backend-node.md            # carregam só se o diff tocar na camada
 │   ├── frontend-vue.md
 │   ├── frontend-react.md
-│   ├── database-postgres-pgvector.md
+│   ├── database-postgres-pgvector.md  # grupo "database": desempate por level quando mais de um casa
+│   ├── database-mssql.md
+│   ├── database-sqlite-android.md
+│   ├── database-mongodb.md
 │   ├── android-kotlin.md          # Compose, Views, Room, Hilt por variante
 │   └── java-spring.md             # JPA, Spring Security, WebFlux, mensageria por variante
 └── tests/
@@ -434,6 +437,13 @@ pelo menos uma destas chaves:
 | `content` | a regex (ERE, case-insensitive) aparece numa linha adicionada do diff |
 | `variants` | `{<nome>: {deps?, manifest?, paths?, content?}}` — mesma semântica das chaves acima, mas não decide se o checklist carrega: só quais seções dele aplicar. Entra na saída em `variants.<checklist>` quando casar |
 | `paths_require_manifest` | `true`: `paths` só conta se `manifest` também casar — para padrão de arquivo genérico (`**/*.kts`) que sozinho não deve carregar o checklist num projeto de stack diferente |
+| `exclusive_group` | Nome do grupo de desempate (ex.: `database`). Todo checklist do grupo é avaliado por completo (`paths`, `deps`, `manifest`, `content`, sem parar no primeiro), e só ficam os de `level` máximo do grupo — empate mantém todos. Descartado some de `load`/`why` e aparece em `suppressed` |
+
+Fora de um `exclusive_group`, a detecção também passou a avaliar todos os
+métodos (não só o primeiro que casar): `why` lista todos, separados por
+`; `, e cada entrada carrega um `level` (`deps`/`manifest` = 3, `content`
+= 2, `paths` = 1, `always` = 0 — nunca participa de grupo), usado só para
+o desempate dentro de um grupo.
 
 Qualquer uma basta; não precisa de todas. `index.json` é dado, não código —
 adicionar checklist não toca `detect-checklists.sh`.

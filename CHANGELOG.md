@@ -21,6 +21,20 @@ vira uma tag git (`vX.Y.Z`).
 
 ### Adicionado
 
+- **`ms-codereview`: checklists `database-mssql`, `database-sqlite-android`
+  e `database-mongodb`.** SQL Server (migration com `XACT_ABORT`/`GO`,
+  isolamento e `NOLOCK`, `NVARCHAR`/`DATETIME2`), SQLite no Android via
+  Room (versão do motor pelo `minSdk`, migration exata ao schema,
+  `WAL`/único escritor) e MongoDB (modelagem por padrão de acesso,
+  índice ESR, injeção de operador em filtro). Os quatro checklists de
+  banco entram no grupo de desempate `database`: `index.json` ganha
+  `exclusive_group`, e `detect-checklists.sh` passa a avaliar todos os
+  métodos de cada entrada (não só o primeiro) — `why` lista todos
+  separados por `; `, `level` decide quem fica quando mais de um
+  checklist do grupo casa (empate mantém todos), e o descartado aparece
+  em `raw/checklists.json.suppressed` em vez do relatório.
+  `database-postgres-pgvector` ganha detecção por `deps`/`manifest`
+  (só tinha `paths`/`content`) e entra no mesmo grupo.
 - **`ms-codereview`: checklist `java-spring`.** Java 25 LTS (records,
   sealed/pattern matching, virtual threads, `StructuredTaskScope`) e
   Spring Boot 4/Framework 7 (com nota onde o Boot 3.x difere): camadas,

@@ -159,12 +159,15 @@ match_paths() { # $1=nome $2=variante -> imprime o arquivo que casou; exit 1 se 
 
 match_deps() { # $1=nome $2=variante -> imprime a dependência que casou; exit 1 se nenhuma
   # deps é açúcar de manifest com files:["package.json"]: casa se QUALQUER
-  # arquivo JS tocado tem a dependência no SEU manifesto mais próximo.
+  # arquivo JS tocado, ou o próprio package.json, tem a dependência no
+  # manifesto mais próximo (package.json tocado é evidência tão boa
+  # quanto um arquivo JS — ex.: dependência de banco nova ao lado de uma
+  # migration .sql, sem nenhum arquivo JS no diff).
   local name="$1" variant="$2" dep f manifest
   while IFS= read -r dep; do
     [ -n "$dep" ] || continue
     for f in "${FILES[@]}"; do
-      is_js_file "$f" || continue
+      if ! is_js_file "$f" && [ "$(basename "$f")" != "package.json" ]; then continue; fi
       manifest="$(nearest_manifest "$f" "package.json" || true)"
       [ -n "$manifest" ] || continue
       if jq -e --arg d "$dep" '((.dependencies // {}) + (.devDependencies // {})) | has($d)' "$manifest" >/dev/null 2>&1; then
@@ -183,13 +186,24 @@ match_manifest() { # $1=nome $2=variante -> imprime o basename do manifesto que 
   pattern="$(idx_get "$name" "$variant" '.manifest.pattern // empty')"
   exts="$(idx_get "$name" "$variant" '.manifest.ext // [] | join(" ")')"
   for f in "${FILES[@]}"; do
-    matched_ext=false
-    for ext in $exts; do
-      case "$f" in *"$ext") matched_ext=true; break ;; esac
+    # o manifesto tocado diretamente é evidência tão boa quanto um
+    # arquivo de código com a extensão certa (ex.: pom.xml ganhando uma
+    # dependência nova, sem nenhum .java tocado no mesmo diff).
+    is_manifest_itself=false
+    for mname in $names_list; do
+      [ "$(basename "$f")" != "$mname" ] || { is_manifest_itself=true; break; }
     done
-    [ "$matched_ext" = true ] || continue
-    manifest="$(nearest_manifest "$f" "$names_list" || true)"
-    [ -n "$manifest" ] || continue
+    if [ "$is_manifest_itself" = true ]; then
+      manifest="$BASE_DIR/$f"
+    else
+      matched_ext=false
+      for ext in $exts; do
+        case "$f" in *"$ext") matched_ext=true; break ;; esac
+      done
+      [ "$matched_ext" = true ] || continue
+      manifest="$(nearest_manifest "$f" "$names_list" || true)"
+      [ -n "$manifest" ] || continue
+    fi
     if [ -z "$pattern" ] || grep -qiE -- "$pattern" "$manifest"; then
       printf '%s\n' "$(basename "$manifest")"
       return 0
@@ -235,39 +249,45 @@ trap 'rm -f "$MATCHES_FILE"' EXIT
 while IFS= read -r name; do
   [ -n "$name" ] || continue
   REASON_PARTS=()
+  LEVELS=()
 
+  # Avalia TODOS os métodos (não para no primeiro): why lista todos os
+  # que casaram, e level (o maior deles) decide o desempate dentro de um
+  # exclusive_group (F12). deps/manifest=3, content=2, paths=1, always=0
+  # (nunca participa de grupo).
   IS_ALWAYS="$(idx_get "$name" "" '.always // false')"
   if [ "$IS_ALWAYS" = "true" ] && [ ${#FILES[@]} -gt 0 ]; then
-    REASON_PARTS+=("always")
+    REASON_PARTS+=("always"); LEVELS+=(0)
   fi
 
-  if [ ${#REASON_PARTS[@]} -eq 0 ]; then
-    m="$(match_paths "$name" "" || true)"
-    if [ -n "$m" ]; then
-      REQUIRES_MANIFEST="$(idx_get "$name" "" '.paths_require_manifest // false')"
-      if [ "$REQUIRES_MANIFEST" = "true" ]; then
-        mf_guard="$(match_manifest "$name" "" || true)"
-        [ -z "$mf_guard" ] || REASON_PARTS+=("paths: $m")
-      else
-        REASON_PARTS+=("paths: $m")
-      fi
+  m="$(match_paths "$name" "" || true)"
+  if [ -n "$m" ]; then
+    REQUIRES_MANIFEST="$(idx_get "$name" "" '.paths_require_manifest // false')"
+    if [ "$REQUIRES_MANIFEST" = "true" ]; then
+      mf_guard="$(match_manifest "$name" "" || true)"
+      if [ -n "$mf_guard" ]; then REASON_PARTS+=("paths: $m"); LEVELS+=(1); fi
+    else
+      REASON_PARTS+=("paths: $m"); LEVELS+=(1)
     fi
   fi
-  if [ ${#REASON_PARTS[@]} -eq 0 ]; then
-    d="$(match_deps "$name" "" || true)"
-    [ -z "$d" ] || REASON_PARTS+=("deps: $d")
-  fi
-  if [ ${#REASON_PARTS[@]} -eq 0 ]; then
-    mf="$(match_manifest "$name" "" || true)"
-    [ -z "$mf" ] || REASON_PARTS+=("manifest: $mf")
-  fi
-  if [ ${#REASON_PARTS[@]} -eq 0 ]; then
-    c="$(match_content "$name" "" || true)"
-    [ -z "$c" ] || REASON_PARTS+=("content: $c")
-  fi
+
+  d="$(match_deps "$name" "" || true)"
+  if [ -n "$d" ]; then REASON_PARTS+=("deps: $d"); LEVELS+=(3); fi
+
+  mf="$(match_manifest "$name" "" || true)"
+  if [ -n "$mf" ]; then REASON_PARTS+=("manifest: $mf"); LEVELS+=(3); fi
+
+  c="$(match_content "$name" "" || true)"
+  if [ -n "$c" ]; then REASON_PARTS+=("content: $c"); LEVELS+=(2); fi
 
   if [ ${#REASON_PARTS[@]} -gt 0 ]; then
-    WHY_TEXT="$(IFS='; '; echo "${REASON_PARTS[*]}")"
+    WHY_TEXT=""
+    for part in "${REASON_PARTS[@]}"; do
+      if [ -z "$WHY_TEXT" ]; then WHY_TEXT="$part"; else WHY_TEXT="$WHY_TEXT; $part"; fi
+    done
+    MAX_LEVEL=0
+    for lv in "${LEVELS[@]}"; do [ "$lv" -le "$MAX_LEVEL" ] || MAX_LEVEL="$lv"; done
+    GROUP="$(idx_get "$name" "" '.exclusive_group // empty')"
 
     VARIANT_MATCHES=()
     while IFS= read -r vname; do
@@ -286,9 +306,25 @@ while IFS= read -r name; do
     fi
 
     jq -n -c --arg name "$name" --arg why "$WHY_TEXT" --argjson variants "$VARIANTS_JSON" \
-      '{name:$name, why:$why, variants:$variants}' >> "$MATCHES_FILE"
+      --argjson level "$MAX_LEVEL" --arg group "$GROUP" \
+      '{name:$name, why:$why, variants:$variants, level:$level,
+        group:(if $group=="" then null else $group end)}' >> "$MATCHES_FILE"
   fi
 done < <(jq -r 'keys[]' "$INDEX")
+
+# ---------- desempate dentro de exclusive_group (F12) ----------
+# Dentro de um grupo, ficam só os checklists cujo level é o máximo do
+# grupo; empate mantém todos. Fora de grupo, nada muda. O descartado
+# aparece em "suppressed", não em "load"/"why".
+SUPPRESSED_JSON="$(jq -s -c '
+  (map(select(.group != null))) as $grouped
+  | ($grouped | group_by(.group) | map({(.[0].group): (map(.level) | max)}) | add // {}) as $maxby
+  | ($grouped
+     | map(select(.level < $maxby[.group]))
+     | map({(.name): ("grupo " + .group + ": level " + (.level|tostring) + " < " + ($maxby[.group]|tostring))})
+     | add // {})
+' "$MATCHES_FILE")"
+[ -n "$SUPPRESSED_JSON" ] && [ "$SUPPRESSED_JSON" != "null" ] || SUPPRESSED_JSON="{}"
 
 # ---------- passagem de segurança (F4/F6) ----------
 SECURITY=false
@@ -356,10 +392,15 @@ fi
 jq -s \
   --argjson security "$SECURITY" \
   --arg security_why "$SECURITY_WHY" \
-  '{load: map(.name), why: (map({(.name): .why}) | add // {}),
-    variants: (map(select((.variants|length)>0) | {(.name): .variants}) | add // {}),
-    security: $security,
-    security_why: (if $security_why=="" then null else $security_why end)}' \
+  --argjson suppressed "$SUPPRESSED_JSON" \
+  '(map(select(.name as $n | $suppressed | has($n) | not))) as $kept
+   | {load: ($kept | map(.name)),
+      why: ($kept | map({(.name): .why}) | add // {}),
+      variants: ($kept | map(select((.variants|length)>0) | {(.name): .variants}) | add // {}),
+      level: (map({(.name): .level}) | add // {}),
+      suppressed: $suppressed,
+      security: $security,
+      security_why: (if $security_why=="" then null else $security_why end)}' \
   "$MATCHES_FILE" > "$OUT"
 
 echo "checklists em: $OUT"

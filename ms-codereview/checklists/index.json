@@ -24,8 +24,45 @@
     "deps": ["react"]
   },
   "database-postgres-pgvector": {
+    "exclusive_group": "database",
     "paths": ["**/migrations/**", "**/migration/**", "**/*.sql", "**/schema.prisma", "**/drizzle/**"],
+    "deps": ["pg", "postgres", "pg-promise", "pgvector", "@electric-sql/pglite"],
+    "manifest": {"files": ["pom.xml", "build.gradle.kts", "build.gradle", "libs.versions.toml"],
+                 "pattern": "org\\.postgresql|r2dbc-postgresql",
+                 "ext": [".java", ".kt"]},
     "content": ["vector\\(", "<=>", "<->", "<#>", "embedding", "pgvector", "CREATE INDEX", "ALTER TABLE"]
+  },
+  "database-mssql": {
+    "exclusive_group": "database",
+    "paths": ["**/*.sql", "**/*.sqlproj", "**/*.dacpac", "**/db/migration/**"],
+    "deps": ["mssql", "tedious", "@azure/msnodesqlv8"],
+    "manifest": {"files": ["pom.xml", "build.gradle.kts", "build.gradle", "libs.versions.toml"],
+                 "pattern": "mssql-jdbc|sqlserver|r2dbc-mssql",
+                 "ext": [".java", ".kt"]},
+    "content": ["NVARCHAR", "^GO\\s*$", "\\bdbo\\.", "WITH \\(NOLOCK\\)", "DATETIME2",
+                "IDENTITY\\(", "\\bTOP \\(", "OFFSET .* ROWS FETCH", "sp_executesql",
+                "MERGE .* USING", "SCOPE_IDENTITY", "UNIQUEIDENTIFIER", "NEWSEQUENTIALID"]
+  },
+  "database-sqlite-android": {
+    "exclusive_group": "database",
+    "paths": ["**/schemas/*/*.json", "**/assets/**/*.db"],
+    "manifest": {"files": ["build.gradle.kts", "build.gradle", "libs.versions.toml"],
+                 "pattern": "androidx\\.room|room-runtime|room-ktx|room-compiler|androidx\\.sqlite|sqlite-bundled|sqlcipher",
+                 "ext": [".kt", ".java"]},
+    "content": ["@Database\\(", "@Dao\\b", "@Entity\\(tableName", "RoomDatabase", "SQLiteOpenHelper",
+                "SQLiteDatabase", "SupportSQLiteDatabase", "Migration\\([0-9]+, ?[0-9]+\\)",
+                "execSQL\\(", "rawQuery\\(", "@Upsert", "PagingSource"]
+  },
+  "database-mongodb": {
+    "exclusive_group": "database",
+    "paths": ["**/*.schema.ts", "**/schemas/**/*.ts", "**/migrations-mongo/**", "**/mongock/**"],
+    "deps": ["mongodb", "mongoose", "@nestjs/mongoose", "@typegoose/typegoose", "migrate-mongo", "mongodb-memory-server"],
+    "manifest": {"files": ["pom.xml", "build.gradle.kts", "build.gradle", "libs.versions.toml"],
+                 "pattern": "spring-boot-starter-data-mongodb|mongodb-driver|mongock",
+                 "ext": [".java", ".kt"]},
+    "content": ["@Schema\\(", "mongoose\\.", "\\.aggregate\\(\\[", "\\$lookup", "\\$match", "ObjectId\\(",
+                "@Document\\(", "MongoRepository", "MongoTemplate", "db\\.collection\\(",
+                "findOneAndUpdate", "updateMany\\(", "bulkWrite\\(", "\\$vectorSearch"]
   },
   "common": {"always": true},
   "ci-infra": {
