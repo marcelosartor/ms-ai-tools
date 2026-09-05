@@ -1,7 +1,19 @@
 {
-  "backend-node-nest": {
-    "paths": ["**/*.controller.ts", "**/*.service.ts", "**/*.module.ts", "**/*.guard.ts", "**/*.interceptor.ts"],
-    "deps": ["@nestjs/core"]
+  "backend-node": {
+    "paths": ["**/*.controller.*", "**/*.service.*", "**/*.module.ts", "**/*.guard.*",
+              "**/*.interceptor.*", "**/*.dto.ts", "**/*.entity.ts", "**/*.resolver.ts",
+              "**/*.gateway.ts", "**/*.pipe.ts", "**/*.filter.ts", "**/*.strategy.ts",
+              "**/routes/**", "**/*.route.*", "**/*.router.*", "**/middleware/**",
+              "**/server.[tj]s", "**/app.[tj]s", "**/handlers/**", "**/plugins/**"],
+    "deps": ["express", "fastify", "@nestjs/core", "koa", "hono", "@hapi/hapi"],
+    "content": ["app\\.(get|post|put|patch|delete|use)\\(", "fastify\\.(get|post|register)\\(",
+                "@Controller\\(", "createServer\\(", "router\\.(get|post|put|patch|delete)\\("],
+    "variants": {
+      "express": {"deps": ["express"]},
+      "fastify": {"deps": ["fastify", "@nestjs/platform-fastify"]},
+      "nest": {"deps": ["@nestjs/core"]},
+      "koa": {"deps": ["koa"]}
+    }
   },
   "frontend-vue": {
     "paths": ["**/*.vue"],

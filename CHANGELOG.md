@@ -21,6 +21,11 @@ vira uma tag git (`vX.Y.Z`).
 
 ### Adicionado
 
+- **`ms-codereview`: checklist `backend-node` (Express, Fastify, NestJS,
+  Node puro).** Substitui `backend-node-nest.md` (assumia NestJS). Seção
+  `Comum` cobre camadas, assincronia, banco e configuração para qualquer
+  framework; `Express`, `Fastify`, `NestJS` e `NestJS sobre Fastify`
+  aplicam pela variante detectada (`variants["backend-node"]`).
 - **`ms-codereview`: leitores independentes e refutador que executa.**
   `prompts/reader.md` despacha três subagents em paralelo (lentes `spec`,
   `correcao`, `checklist`) sobre o mesmo diff, com acesso ao worktree de

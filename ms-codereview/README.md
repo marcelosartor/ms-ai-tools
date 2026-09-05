@@ -110,7 +110,7 @@ Estrutura final:
 │   └── security.md              # subagent de segurança, só quando acionado
 ├── checklists/
 │   ├── index.json               # regras de detecção (dado, não código)
-│   ├── backend-node-nest.md      # carregam só se o diff tocar na camada
+│   ├── backend-node.md            # carregam só se o diff tocar na camada
 │   ├── frontend-vue.md
 │   ├── frontend-react.md
 │   └── database-postgres-pgvector.md
