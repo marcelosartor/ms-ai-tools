@@ -3,7 +3,7 @@ name: ms-codereview
 description: Revisa um pull request de terceiros com critério calibrado para bloquear apenas correção, segurança e dados, e fecha com uma recomendação de aprovar ou rejeitar mais um rascunho de comentário para o PR. Use quando o usuário pedir para revisar um PR, fazer code review, analisar um diff antes de aprovar, ou perguntar se deve aprovar ou rejeitar uma mudança. Aceita número de PR, nome de branch ou range de refs como argumento.
 license: Apache-2.0
 metadata:
-  version: 0.5.0
+  version: 0.6.0
 ---
 
 # Revisão de pull request
@@ -161,7 +161,7 @@ entre elas é um achado de natureza diferente.
 9. **Reportar** no formato descrito abaixo.
 
 10. **Recomendar e rascunhar o comentário.** Sempre, mesmo quando o
-   relatório não teve nenhum achado.
+    relatório não teve nenhum achado.
 
 11. **Revisar a própria revisão** antes de entregar. Ver "Segunda passagem".
 
@@ -172,7 +172,7 @@ entre elas é um achado de natureza diferente.
 
 `raw/context-status.json` traz `head_sha`, `previous_report` e
 `previous_sha` (sha7 do relatório anterior mais recente, se houver). Ao
-final de toda revisão — passo 10 do procedimento — gravar o relatório
+final de toda revisão — passo 12 do procedimento — gravar o relatório
 completo em `temp/cr/<alvo>/report-<sha7 de head_sha>.md`, começando com um
 bloco fixo, machine-readable, uma linha por achado que ficou no relatório:
 

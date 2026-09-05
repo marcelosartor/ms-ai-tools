@@ -6,51 +6,55 @@ Versionamento em [semver](https://semver.org): a versão do pool vive em
 dela — ver a seção "Versões" do [README](README.md). Cada versão do pool
 vira uma tag git (`vX.Y.Z`).
 
-## [Não lançado]
+## [0.6.0] - 2026-09-05
+
+Fecha o PRD de `docs/prd/ms-codereview-0.6.0.md` (local, não versionado):
+sete melhorias sobre o `/code-review` nativo e ferramentas de mercado,
+sem mudar o critério da skill.
 
 ### Adicionado
 
-- `ms-codereview`: `fetch-context.sh` classifica PR mecânico (bump de
-  dependência, formatação, rename, doc) em `context-status.json`
-  (`mechanical`/`mechanical_kind`) e dispensa ticket/`--spec-file` quando
+- **PR mecânico dispensa ticket.** `fetch-context.sh` classifica bump de
+  dependência, formatação, rename e doc em `context-status.json`
+  (`mechanical`/`mechanical_kind`) e pula ticket/`--spec-file` quando
   reconhece um — a própria mudança é a spec. `SKILL.md` ganha revisão
   reduzida por tipo.
-- `ms-codereview/tests/run.sh`: primeiro harness de testes da skill, bash
-  puro, com os casos do PR mecânico.
-- `ms-codereview`: passagem de segurança dedicada — `detect-checklists.sh`
-  aciona `security`/`security_why` em `raw/checklists.json` quando o diff
-  toca caminho sensível (auth, sessão, token, cripto, upload,
-  middleware...), um padrão de API perigosa (`eval`, `exec`, query
-  interpolada, `innerHTML`, `child_process`, `jwt`/`bcrypt`/`crypto`...)
-  ou ganha dependência nova; a skill despacha um subagent com
-  `prompts/security.md` (lente OWASP restrita ao diff) antes de reportar.
-- `ms-codereview`: `scripts/run-checks.sh` roda typecheck e os testes que
-  o diff tocou, num worktree isolado (nunca mexe no working tree do
-  usuário, nunca roda `npm install` — reaproveita `node_modules` via
-  symlink quando o diff não altera dependências). Teste e typecheck que
-  falham viram `blocker:` no relatório; lint continua fora, coberto pela
-  regra de não reportar o que o CI já cobre.
-- `ms-codereview`: review inline pronto para postar — junto do rascunho de
-  comentário, a skill grava `temp/cr/<pr>/review-<sha7>.json` no formato
-  de review do GitHub (`comments[]` com `path`/`line`/`body`);
-  `scripts/post-review.sh <pr>` publica quando o usuário decidir, e
-  recusa (exit `3`) se o PR mudou desde que o review foi escrito.
-- `ms-codereview`: re-review incremental — `fetch-context.sh` grava
-  `head_sha`/`base_sha` e detecta `previous_report`/`previous_sha` (o
-  `report-<sha7>.md` mais recente em `temp/cr/<alvo>/`); a skill grava um
-  relatório por rodada e, na próxima, revisa só o delta e classifica cada
-  achado anterior como resolvido, aberto ou novo, em vez de recomeçar do
-  zero.
-- `ms-codereview`: refutador independente — todo `blocker:` que sobrevive
-  à segunda passagem vai para um subagent à parte (`prompts/refute.md`),
-  que não vê o relatório e tenta derrubar a afirmação. Achado refutado sai
-  do relatório e vai para `temp/cr/<alvo>/refuted.md`; inconclusivo vira
+- **Detecção determinística de checklist.** `scripts/detect-checklists.sh`
+  decide, a partir do diff e de `checklists/index.json` (dado, não
+  código), quais checklists carregar e grava o motivo em
+  `raw/checklists.json`. Mesmo diff, mesmo conjunto, toda vez — antes
+  dependia de julgamento na hora.
+- **Refutador independente.** Todo `blocker:` que sobrevive à segunda
+  passagem vai para um subagent à parte (`prompts/refute.md`), que não vê
+  o relatório e tenta derrubar a afirmação. Achado refutado sai do
+  relatório e vai para `temp/cr/<alvo>/refuted.md`; inconclusivo vira
   `dúvida:`.
-- `ms-codereview`: detecção determinística de checklist —
-  `scripts/detect-checklists.sh` decide, a partir do diff e de
-  `checklists/index.json` (dado, não código), quais checklists carregar e
-  grava o motivo em `raw/checklists.json`. Mesmo diff, mesmo conjunto,
-  toda vez; antes dependia de julgamento na hora.
+- **Re-review incremental.** `fetch-context.sh` grava `head_sha`/`base_sha`
+  e detecta `previous_report`/`previous_sha` (o `report-<sha7>.md` mais
+  recente em `temp/cr/<alvo>/`); a skill grava um relatório por rodada e,
+  na próxima, revisa só o delta e classifica cada achado anterior como
+  resolvido, aberto ou novo, em vez de recomeçar do zero.
+- **Review inline pronto para postar.** Junto do rascunho de comentário, a
+  skill grava `temp/cr/<pr>/review-<sha7>.json` no formato de review do
+  GitHub (`comments[]` com `path`/`line`/`body`); `scripts/post-review.sh
+  <pr>` publica quando o usuário decidir, e recusa (exit `3`) se o PR
+  mudou desde que o review foi escrito.
+- **Roda o que for barato.** `scripts/run-checks.sh` roda typecheck e os
+  testes que o diff tocou, num worktree isolado (nunca mexe no working
+  tree do usuário, nunca roda `npm install` — reaproveita `node_modules`
+  via symlink quando o diff não altera dependências). Teste e typecheck
+  que falham viram `blocker:` no relatório; lint continua fora, coberto
+  pela regra de não reportar o que o CI já cobre.
+- **Passagem de segurança dedicada.** `detect-checklists.sh` aciona
+  `security`/`security_why` em `raw/checklists.json` quando o diff toca
+  caminho sensível (auth, sessão, token, cripto, upload, middleware...),
+  um padrão de API perigosa (`eval`, `exec`, query interpolada,
+  `innerHTML`, `child_process`, `jwt`/`bcrypt`/`crypto`...) ou ganha
+  dependência nova; a skill despacha um subagent com `prompts/security.md`
+  (lente OWASP restrita ao diff) antes de reportar.
+- `ms-codereview/tests/run.sh`: primeiro harness de testes da skill —
+  bash puro, fixtures de repositório git em diretório temporário, um
+  arquivo `f<N>.sh` por feature acima.
 
 ## [0.5.0] - 2026-09-05
 

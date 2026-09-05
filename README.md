@@ -197,7 +197,7 @@ Credencial existente nunca é sobrescrita nem descartada.
 
 | Ferramenta | Etapa do SDD | Versão | Comando | Credenciais |
 |---|---|---|---|---|
-| **[ms-codereview](ms-codereview/README.md)** | Revisão | 0.5.0 | `/ms-codereview` | ClickUp **ou** Jira |
+| **[ms-codereview](ms-codereview/README.md)** | Revisão | 0.6.0 | `/ms-codereview` | ClickUp **ou** Jira |
 | **ms-prd-generator** | Especificação | (Em Desenvolvimento) | — | — |
 | **ms-harness-generator** | Planejamento | (Em Desenvolvimento) | — | — |
 
@@ -216,10 +216,16 @@ por isso vale confirmar contra o ticket.
 **Por que usar, e não só ler o diff:** severidade calibrada (só bloqueia por
 erro de lógica, falha de segurança, perda/vazamento de dado ou regressão; o
 resto vira sugestão), veredito mecânico derivado dos achados (*Aprovar* /
-*Aprovar com ressalvas* / *Rejeitar*), segunda passagem que descarta o que
-não se sustenta antes de entregar, e rejeição explícita por falta de dados em
-vez de inferir a intenção a partir do código. Nada é postado no PR sem você
-pedir.
+*Aprovar com ressalvas* / *Rejeitar*), e rejeição explícita por falta de
+dados em vez de inferir a intenção a partir do código — exceto para PR
+mecânico (bump de dependência, formatação, rename, doc), onde a própria
+mudança já é a spec. Cada `blocker:` passa por um subagent à parte que tenta
+derrubá-lo antes de entrar no relatório; typecheck e os testes que o diff
+tocou rodam de verdade num worktree isolado; diff que toca algo sensível
+aciona uma passagem de segurança dedicada. Revisão do mesmo PR depois de
+novos commits é incremental — só o delta, com o que já foi resolvido
+separado do que continua aberto. Nada é postado no PR sem você pedir,
+inclusive o review inline que a skill deixa pronto para publicar.
 
 Busca o ticket no **ClickUp** ou no **Jira** (Cloud e Server/DC), escolhendo
 o tracker pelo formato do id que encontra no PR ou na branch; sem tracker,

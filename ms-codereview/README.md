@@ -1,4 +1,4 @@
-# ms-codereview v0.5.0
+# ms-codereview v0.6.0
 
 ## Descrição
 
