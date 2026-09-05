@@ -14,9 +14,10 @@ determinada, em vez de depender de disciplina manual repetida a cada
 projeto e a cada pessoa.
 
 A cobertura é parcial por natureza: o pool cresce por etapa do workflow, não
-por acúmulo de utilitários soltos. Hoje só a etapa de **revisão** tem
-ferramenta (`ms-codereview`); especificação, planejamento e implementação
-ainda dependem de processo manual.
+por acúmulo de utilitários soltos. Hoje a etapa de **revisão** tem
+ferramenta pronta (`ms-codereview`); **especificação** e **planejamento** têm
+ferramenta em desenvolvimento (`ms-prd-generator` e `ms-harness-generator`);
+**implementação** ainda depende de processo manual.
 
 Nada aqui é específico de cliente ou de projeto. O que uma ferramenta precisa
 saber do domínio vem do `CLAUDE.md` do repositório onde ela roda, ou do
@@ -194,9 +195,11 @@ Credencial existente nunca é sobrescrita nem descartada.
 
 ## Ferramentas
 
-| Ferramenta | Etapa do SDD | Comando | Credenciais |
-|---|---|---|---|
-| **[ms-codereview](ms-codereview/README.md)** | Revisão | `/ms-codereview` | ClickUp **ou** Jira |
+| Ferramenta | Etapa do SDD | Versão | Comando | Credenciais |
+|---|---|---|---|---|
+| **[ms-codereview](ms-codereview/README.md)** | Revisão | 0.4.0 | `/ms-codereview` | ClickUp **ou** Jira |
+| **ms-prd-generator** | Especificação | (Em Desenvolvimento) | — | — |
+| **ms-harness-generator** | Planejamento | (Em Desenvolvimento) | — | — |
 
 ### [ms-codereview](ms-codereview/README.md) — etapa de revisão
 
@@ -229,6 +232,55 @@ Requer `jq`, `curl` e `gh` autenticado.
 ```bash
 npx github:marcelosartor/ms-ai-tools ms-codereview
 ```
+
+### Em desenvolvimento
+
+Ainda sem skill instalável — sem comando, sem `SKILL.md`, marcadas como
+"(Em Desenvolvimento)" na coluna Versão da tabela acima. O link ao README, o
+comando e a versão real entram aqui assim que a ferramenta entrar no pool.
+
+#### ms-prd-generator — etapa de especificação
+
+**Por que existe:** a especificação de um workflow de SDD parte de um PRD
+(Product Requirements Document), e hoje esse documento é escrito à mão, com
+formato e nível de detalhe variando por quem escreve — quando existe. A
+ferramenta gera o PRD a partir do ticket ou das user stories, formalizando o
+documento que embasa o restante do workflow.
+
+**Quando usar:** no início do trabalho sobre um ticket ou um conjunto de
+user stories, antes de planejar ou implementar — o PRD gerado é a entrada
+da etapa seguinte.
+
+**Por que usar:** formato consistente entre PRDs, independente de quem
+escreveu, e rastreabilidade explícita entre o que o ticket pediu e o que o
+PRD formalizou como requisito.
+
+#### ms-harness-generator — etapa de planejamento
+
+**Por que existe:** um agente de codificação trabalha melhor com um harness
+(`CLAUDE.md`/`AGENTS.md`, regras, skills) que reflita a arquitetura real do
+projeto, e hoje montar esse harness é trabalho manual, feito uma vez no
+início do projeto e raramente atualizado depois. A ferramenta gera o
+harness a partir dos documentos de design já existentes, em vez de exigir
+que alguém releia a arquitetura inteira e transcreva as regras à mão.
+
+**Quando usar:** ao iniciar um projeto sem harness, ou quando os documentos
+de design mudaram e o harness existente ficou desatualizado.
+
+**Por que usar:** harness derivado do design formal, não reconstruído de
+memória — e reproduzível sempre que o documento fonte mudar, em vez de
+corrigido a reboque de cada divergência que o agente comete.
+
+Documentos de design que a ferramenta deve saber ler:
+
+- **SAD** (Software Architecture Document)
+- **ADRs** (Architecture Decision Records)
+- **Design Tokens** (UI)
+- **Contrato de API** (OpenAPI/GraphQL/schema)
+- **Modelo de dados** (diagrama ER, schema de banco)
+- **Guia de estilo de código** e convenções de lint
+- **Glossário de domínio** (linguagem ubíqua, DDD)
+- **Requisitos não funcionais** (performance, segurança, disponibilidade)
 
 ## Adicionar uma ferramenta
 
