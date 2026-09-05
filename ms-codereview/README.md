@@ -69,11 +69,14 @@ Estrutura final:
 │   └── providers/
 │       ├── clickup.sh
 │       └── jira.sh
-└── checklists/                 # carregam só se o diff tocar na camada
-    ├── backend-node-nest.md
-    ├── frontend-vue.md
-    ├── frontend-react.md
-    └── database-postgres-pgvector.md
+├── checklists/                  # carregam só se o diff tocar na camada
+│   ├── backend-node-nest.md
+│   ├── frontend-vue.md
+│   ├── frontend-react.md
+│   └── database-postgres-pgvector.md
+└── tests/
+    ├── run.sh                  # bash ms-codereview/tests/run.sh
+    └── f7.sh                   # casos por feature, carregados pelo run.sh
 
 ~/.config/ms-ai-tools/
 ├── .env                        # suas credenciais, fora da skill
@@ -203,7 +206,12 @@ Grava em `temp/cr/<pr>/raw/`, dentro do repositório revisado:
 | `pr.json`, `pr-body.md`, `pr-files.tsv`, `pr-comments.md` | o PR |
 | `ticket.md` | o ticket em Markdown — mesmo formato para todo tracker |
 | `ticket.json`, `ticket-comments.json` | resposta crua da API |
-| `context-status.json` | o que deu certo, o tracker usado e o motivo do que faltou |
+| `context-status.json` | o que deu certo, o tracker usado, se o PR é mecânico e o motivo do que faltou |
+
+PR mecânico (bump de dependência, formatação, rename, doc) dispensa ticket:
+o script classifica sozinho pelo diff (`mechanical`/`mechanical_kind` em
+`context-status.json`) e, quando reconhece um, nem tenta ticket nem
+`--spec-file` — a própria mudança já é a spec.
 
 O script acrescenta `temp/` ao `.gitignore` do projeto na primeira execução
 — só se o caminho ainda não estiver ignorado, e criando o arquivo se não
@@ -235,6 +243,17 @@ Cada revisão devolve três blocos, nesta ordem:
    cobriu. É insumo: quem decide é você.
 3. **Comentário para o PR** — rascunho pronto para colar, na primeira pessoa,
    no idioma do PR e sem o jargão de severidade da skill.
+
+## Testes
+
+```bash
+bash ms-codereview/tests/run.sh
+```
+
+Harness em bash puro: monta fixtures de repositório git em diretório
+temporário, roda os scripts de verdade e confere exit code e campos do
+JSON gerado. Cada arquivo `tests/f<N>.sh` cobre uma feature; `run.sh` os
+carrega todos e imprime a contagem final.
 
 ## Manutenção
 

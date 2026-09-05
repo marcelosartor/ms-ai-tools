@@ -119,6 +119,8 @@ TASK_OK=false
 TASK_ID=""
 PROVIDER=""
 REASON=""
+MECHANICAL=false
+MECHANICAL_KIND=""
 
 write_status() {
   jq -n \
@@ -130,13 +132,18 @@ write_status() {
     --arg generated_at "$(date -Iseconds)" \
     --argjson pr_ok "$PR_OK" \
     --argjson task_ok "$TASK_OK" \
+    --argjson mechanical "$MECHANICAL" \
+    --arg mechanical_kind "$MECHANICAL_KIND" \
     '{target:$target, raw_dir:$raw, pr_fetched:$pr_ok,
       provider:(if $provider=="" then null else $provider end),
       task_id:(if $task_id=="" then null else $task_id end),
-      task_fetched:$task_ok, reason:(if $reason=="" then null else $reason end), generated_at:$generated_at}' \
+      task_fetched:$task_ok,
+      mechanical:$mechanical,
+      mechanical_kind:(if $mechanical_kind=="" then null else $mechanical_kind end),
+      reason:(if $reason=="" then null else $reason end), generated_at:$generated_at}' \
     > "$STATUS_FILE"
   echo "contexto em: $RAW"
-  jq -r '"  pr_fetched=\(.pr_fetched)  provider=\(.provider // "-")  task_id=\(.task_id // "-")  task_fetched=\(.task_fetched)  reason=\(.reason // "-")"' "$STATUS_FILE"
+  jq -r '"  pr_fetched=\(.pr_fetched)  provider=\(.provider // "-")  task_id=\(.task_id // "-")  task_fetched=\(.task_fetched)  mechanical=\(.mechanical)\(if .mechanical_kind then " ("+.mechanical_kind+")" else "" end)  reason=\(.reason // "-")"' "$STATUS_FILE"
 }
 
 # ---------- 1. credenciais ----------
@@ -177,7 +184,7 @@ PROVIDERS="clickup jira"
 # ---------- 2. PR do GitHub ----------
 if printf '%s' "$TARGET" | grep -qE '^[0-9]+$' && command -v gh >/dev/null 2>&1; then
   if gh pr view "$TARGET" \
-       --json number,title,url,state,isDraft,author,baseRefName,headRefName,body,additions,deletions,changedFiles,files,labels,createdAt,mergedAt,closedAt \
+       --json number,title,url,state,isDraft,author,baseRefName,headRefName,baseRefOid,headRefOid,body,additions,deletions,changedFiles,files,labels,createdAt,mergedAt,closedAt \
        > "$RAW/pr.json" 2>"$RAW/gh-error.log"; then
     jq -r '.body // ""' "$RAW/pr.json" > "$RAW/pr-body.md"
     jq -r '.files[] | "\(.additions)\t\(.deletions)\t\(.path)"' "$RAW/pr.json" > "$RAW/pr-files.tsv" 2>/dev/null || true
@@ -185,6 +192,94 @@ if printf '%s' "$TARGET" | grep -qE '^[0-9]+$' && command -v gh >/dev/null 2>&1;
     rm -f "$RAW/gh-error.log"
     PR_OK=true
   fi
+fi
+
+# ---------- 2.5 classificação de PR mecânico ----------
+# Bump de dependência, formatação, rename e doc não têm ticket e não
+# precisam: a própria mudança é a spec. base/head do diff vêm do PR (quando
+# há) ou do range passado como alvo (ex.: main...HEAD); alvo que não é um
+# range e não resolve como commit único deixa a classificação vazia.
+split_range() { # $1=alvo -> "base<TAB>head", vazio se não é um range
+  case "$1" in
+    *...*) printf '%s\t%s\n' "${1%%...*}" "${1##*...}" ;;
+    *..*)  printf '%s\t%s\n' "${1%%..*}" "${1##*..}" ;;
+  esac
+}
+
+DIFF_BASE_SHA=""
+DIFF_HEAD_SHA=""
+if [ "$PR_OK" = true ]; then
+  DIFF_BASE_SHA="$(jq -r '.baseRefOid // empty' "$RAW/pr.json")"
+  DIFF_HEAD_SHA="$(jq -r '.headRefOid // empty' "$RAW/pr.json")"
+else
+  RANGE_PAIR="$(split_range "$TARGET")"
+  if [ -n "$RANGE_PAIR" ]; then
+    RANGE_BASE="${RANGE_PAIR%%$'\t'*}"
+    RANGE_HEAD="${RANGE_PAIR#*$'\t'}"
+    DIFF_BASE_SHA="$(git -C "$BASE_DIR" rev-parse "$RANGE_BASE" 2>/dev/null || true)"
+    DIFF_HEAD_SHA="$(git -C "$BASE_DIR" rev-parse "$RANGE_HEAD" 2>/dev/null || true)"
+  else
+    DIFF_HEAD_SHA="$(git -C "$BASE_DIR" rev-parse "$TARGET" 2>/dev/null || true)"
+  fi
+fi
+
+if [ -n "$DIFF_BASE_SHA" ] && [ -n "$DIFF_HEAD_SHA" ]; then
+  DIFF_RANGE="$DIFF_BASE_SHA...$DIFF_HEAD_SHA"
+  NAME_STATUS="$(git -C "$BASE_DIR" diff --name-status -M90% "$DIFF_RANGE" 2>/dev/null || true)"
+
+  if [ -n "$NAME_STATUS" ]; then
+    mapfile -t DIFF_PATHS < <(printf '%s\n' "$NAME_STATUS" | awk -F'\t' '{print $NF}')
+
+    # deps: só arquivo de dependência, e no package.json só mudou valor
+    # dentro de dependencies/devDependencies/peerDependencies (comparação
+    # estrutural via jq, não por linha — sobrevive a reformatação).
+    IS_DEPS=true
+    for f in "${DIFF_PATHS[@]}"; do
+      case "$(basename "$f")" in
+        package.json|package-lock.json|pnpm-lock.yaml|yarn.lock) ;;
+        *) IS_DEPS=false; break ;;
+      esac
+    done
+    if [ "$IS_DEPS" = true ]; then
+      for f in "${DIFF_PATHS[@]}"; do
+        [ "$(basename "$f")" = "package.json" ] || continue
+        BASE_PKG_JSON="$(git -C "$BASE_DIR" show "$DIFF_BASE_SHA:$f" 2>/dev/null || echo '{}')"
+        HEAD_PKG_JSON="$(git -C "$BASE_DIR" show "$DIFF_HEAD_SHA:$f" 2>/dev/null || echo '{}')"
+        if ! jq -n -e \
+             --argjson a "$BASE_PKG_JSON" --argjson b "$HEAD_PKG_JSON" \
+             '($a | del(.dependencies,.devDependencies,.peerDependencies)) ==
+              ($b | del(.dependencies,.devDependencies,.peerDependencies))' \
+             >/dev/null 2>&1; then
+          IS_DEPS=false; break
+        fi
+      done
+    fi
+
+    if [ "$IS_DEPS" = true ]; then
+      MECHANICAL=true; MECHANICAL_KIND="deps"
+    elif [ -z "$(git -C "$BASE_DIR" diff -w --numstat "$DIFF_RANGE" 2>/dev/null)" ]; then
+      MECHANICAL=true; MECHANICAL_KIND="format"
+    elif ! printf '%s\n' "$NAME_STATUS" | awk -F'\t' '{print $1}' | grep -qvE '^R'; then
+      MECHANICAL=true; MECHANICAL_KIND="rename"
+    else
+      IS_DOCS=true
+      for f in "${DIFF_PATHS[@]}"; do
+        case "$f" in
+          *.md|*.mdx|*.txt|docs/*) ;;
+          *) IS_DOCS=false; break ;;
+        esac
+      done
+      if [ "$IS_DOCS" = true ]; then MECHANICAL=true; MECHANICAL_KIND="docs"; fi
+    fi
+  fi
+fi
+
+if [ "$MECHANICAL" = true ]; then
+  PROVIDER=""
+  TASK_ID=""
+  REASON="PR mecânico ($MECHANICAL_KIND): a própria mudança é a spec"
+  write_status
+  exit 0
 fi
 
 # ---------- 3. contexto do "ticket": --spec-file, ou tracker ----------

@@ -60,6 +60,26 @@ credencial ausente ou nenhum tracker configurado, `5` o tracker recusou. Em
 usuário, pedir o caminho do documento de spec, ou ler o ticket pelo MCP do
 tracker se estiver conectado.
 
+**Exceção: PR mecânico dispensa ticket.** Bump de dependência, formatação,
+rename e correção de doc não têm ticket e não precisam — a própria mudança
+é a spec, e o que ela deveria fazer é o que o título diz.
+`scripts/fetch-context.sh` classifica isso sozinho (`context-status.json`:
+`mechanical` e `mechanical_kind`); quando `mechanical: true`, ele nem tenta
+ticket nem `--spec-file`. PR misto (ex.: bump de dependência junto de
+código novo) não é mecânico e segue o fluxo normal. Revisão reduzida por
+tipo:
+
+- `deps`: major bump tem changelog/breaking lido e citado; lockfile bate
+  com o `package.json`; dependência nova responde "é necessária, é
+  mantida, o que puxa junto".
+- `format`: confirmar que `git diff -w` está vazio; nada mais a revisar.
+- `rename`: nenhum import ou referência ao caminho antigo sobrou
+  (`grep -rn` pelo nome antigo fora do diff).
+- `docs`: só correção factual contra o código, quando o doc descreve
+  comportamento.
+
+Veredito continua saindo da tabela de sempre.
+
 **Se ainda assim não for possível estabelecer o que o PR deveria fazer, a
 revisão para aqui: rejeitar por falta de dados.** Não inferir a intenção a
 partir do código. Um PR que faz exatamente o que o código diz continua

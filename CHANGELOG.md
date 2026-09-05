@@ -6,6 +6,18 @@ Versionamento em [semver](https://semver.org): a versão do pool vive em
 dela — ver a seção "Versões" do [README](README.md). Cada versão do pool
 vira uma tag git (`vX.Y.Z`).
 
+## [Não lançado]
+
+### Adicionado
+
+- `ms-codereview`: `fetch-context.sh` classifica PR mecânico (bump de
+  dependência, formatação, rename, doc) em `context-status.json`
+  (`mechanical`/`mechanical_kind`) e dispensa ticket/`--spec-file` quando
+  reconhece um — a própria mudança é a spec. `SKILL.md` ganha revisão
+  reduzida por tipo.
+- `ms-codereview/tests/run.sh`: primeiro harness de testes da skill, bash
+  puro, com os casos do PR mecânico.
+
 ## [0.5.0] - 2026-09-05
 
 ### Adicionado
