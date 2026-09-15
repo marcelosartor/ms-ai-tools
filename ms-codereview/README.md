@@ -103,6 +103,7 @@ Estrutura final:
 │   └── providers/
 │       ├── clickup.sh
 │       ├── jira.sh
+│       ├── linear.sh
 │       └── github.sh          # sem variável de .env: usa o gh autenticado
 ├── prompts/
 │   ├── reader.md                 # três leitores independentes (spec/correção/checklist), em paralelo
@@ -135,7 +136,7 @@ Estrutura final:
 
 | Requisito | Para quê | Como |
 |---|---|---|
-| `jq` | processar as respostas das APIs (do PR, do ClickUp e do Jira) | **o instalador resolve** — baixa o binário oficial com sha256 conferido |
+| `jq` | processar as respostas das APIs (do PR, do ClickUp, do Jira e do Linear) | **o instalador resolve** — baixa o binário oficial com sha256 conferido |
 | `curl` | falar com o tracker | já vem na maioria dos sistemas |
 | `gh` autenticado | ler o PR do GitHub | `gh auth login` |
 
@@ -193,6 +194,7 @@ sendo lido e **vence** o compartilhado, para sobrepor um valor pontualmente.
 | ClickUp com id customizado (`DEV-123`) | `+ CLICKUP_TEAM_ID` | id do workspace na URL |
 | Jira Cloud | `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` | id.atlassian.com/manage-profile/security/api-tokens |
 | Jira Server / Data Center | `JIRA_BASE_URL`, `JIRA_TOKEN` (PAT) | Perfil > Personal Access Tokens |
+| Linear | `LINEAR_API_KEY` | Settings > Security & access > API > Personal API keys |
 | GitHub Issues | nenhuma — usa o `gh` já autenticado | `gh auth login` |
 
 O `.env` nunca é versionado, nunca entra no pacote npm, nunca é impresso no
@@ -216,19 +218,28 @@ Pelo formato do id encontrado no corpo do PR ou no nome da branch:
 |---|---|
 | `app.clickup.com/t/86ajrqjc7`, badge `ClickUp-86ajrqjc7-`, `feat/86ajrqjc7` | ClickUp |
 | `.../browse/DEV-142`, `?selectedIssue=DEV-142`, `feat/DEV-142-corrige-saldo` | Jira |
+| `linear.app/empresa/issue/ENG-142`, `feat/ENG-142-corrige-saldo` | Linear |
 | `Closes #123` do PR do GitHub, `#123`, `owner/repo#123`, branch `123-corrige-saldo` | GitHub Issues |
 
 Prefixo de conventional commit não é confundido com chave de projeto:
 `fix/123-ajuste` não vira `FIX-123`.
 
-O único caso ambíguo é o id customizado do ClickUp (`DEV-123`), que tem a
-mesma cara de uma chave do Jira e por isso cai no Jira por padrão. Se o seu
-ClickUp usa esse formato, fixe `TRACKER_PROVIDER=clickup` no `.env`.
+Há dois casos ambíguos, ambos resolvidos pela mesma regra — desempate por
+ordem de descoberta (`clickup jira linear github`), fixável com
+`TRACKER_PROVIDER` no `.env`:
+
+- id customizado do ClickUp (`DEV-123`): mesma cara de uma chave do Jira,
+  cai no Jira por padrão. Se o seu ClickUp usa esse formato, fixe
+  `TRACKER_PROVIDER=clickup`.
+- chave do Linear (`ENG-123`): mesmo formato de uma chave do Jira. Só é
+  ambíguo se os dois estiverem configurados ao mesmo tempo — cai no Jira
+  por padrão nesse caso. Fixe `TRACKER_PROVIDER=linear` se preferir o
+  Linear.
 
 GitHub Issues entra em último na ordem de descoberta — só é candidato
 automático se `gh` estiver autenticado e nenhum outro tracker tiver
-credencial configurada, para não roubar id de quem já usa ClickUp ou
-Jira.
+credencial configurada, para não roubar id de quem já usa ClickUp, Jira ou
+Linear.
 
 Para forçar pontualmente, use `--provider` na chamada do script.
 
@@ -245,7 +256,7 @@ scripts/fetch-context.sh 158 --spec-file docs/specs/refund.md  # sem tracker: ar
 scripts/fetch-context.sh --help
 ```
 
-`--spec-file` é o caminho para quem não usa ClickUp nem Jira: aponta um
+`--spec-file` é o caminho para quem não usa tracker nenhum: aponta um
 arquivo (PRD, spec, ata de reunião — qualquer Markdown ou texto) para virar
 o contexto da revisão, gravado no mesmo `raw/ticket.md` que um tracker
 geraria. Só roda quando passado explicitamente — sem ele, a skill nem tenta
@@ -466,12 +477,15 @@ funções, todas com o prefixo do nome do arquivo:
 | `<p>_fetch <id>` | grava `$RAW/ticket.md` e `$RAW/ticket.json`; em falha, define `REASON` e devolve `1` |
 
 Use `http_get <url> <arquivo>` para as chamadas: ele devolve o HTTP code e
-passa a credencial por stdin, fora do `argv`. Depois some o nome do arquivo à
-lista `PROVIDERS` em `fetch-context.sh` e documente as variáveis no
+passa a credencial por stdin, fora do `argv`. Para API só-GraphQL (sem
+endpoint REST por ticket, caso do Linear), use `http_post <url> <arquivo
+com o corpo> <arquivo de saída>` — mesma passagem por stdin, corpo lido de
+arquivo em vez de ir pelo `argv`. Depois some o nome do arquivo à lista
+`PROVIDERS` em `fetch-context.sh` e documente as variáveis no
 `.env.example`. `providers/github.sh` foge um pouco do contrato porque não
 tem variável própria: `<p>_credentials` confere `gh auth status` em vez de
 ler `.env`, e entra por último em `PROVIDERS` para não roubar id de quem já
-tem ClickUp ou Jira configurado.
+tem ClickUp, Jira ou Linear configurado.
 
 O resto da skill não muda: `ticket.md` tem o mesmo formato para todo tracker,
 então o `SKILL.md` não precisa saber qual está em uso.

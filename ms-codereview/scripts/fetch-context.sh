@@ -194,8 +194,8 @@ for envfile in "$CRED_FILE" "$SKILL_DIR/.env"; do
   set +a
 done
 
-# GET autenticado sem passar credencial por argv: a config vai por stdin,
-# que não aparece em `ps`. AUTH_HEADER é definido pelo provider.
+# GET/POST autenticados sem passar credencial por argv: a config vai por
+# stdin, que não aparece em `ps`. AUTH_HEADER é definido pelo provider.
 AUTH_HEADER=""
 http_get() { # $1 = url  $2 = arquivo de saída -> imprime o http_code
   {
@@ -208,17 +208,37 @@ http_get() { # $1 = url  $2 = arquivo de saída -> imprime o http_code
   } | curl --config - 2>>"$RAW/http-error.log" || echo "000"
 }
 
+# POST com corpo JSON lido de arquivo (não por argv, mesmo motivo do GET).
+# Só o Linear precisa: a API dele é GraphQL, sem endpoint REST por ticket.
+http_post() { # $1 = url  $2 = arquivo com o corpo  $3 = arquivo de saída -> imprime o http_code
+  {
+    printf 'silent\nshow-error\nlocation\n'
+    printf 'header = "Accept: application/json"\n'
+    printf 'header = "Content-Type: application/json"\n'
+    [ -z "$AUTH_HEADER" ] || printf 'header = "Authorization: %s"\n' "$AUTH_HEADER"
+    printf 'url = "%s"\n' "$1"
+    printf 'data-binary = "@%s"\n' "$2"
+    printf 'output = "%s"\n' "$3"
+    printf 'write-out = "%%{http_code}"\n'
+  } | curl --config - 2>>"$RAW/http-error.log" || echo "000"
+}
+
 # shellcheck disable=SC1091
 . "$SKILL_DIR/scripts/providers/clickup.sh"
 # shellcheck disable=SC1091
 . "$SKILL_DIR/scripts/providers/jira.sh"
 # shellcheck disable=SC1091
+. "$SKILL_DIR/scripts/providers/linear.sh"
+# shellcheck disable=SC1091
 . "$SKILL_DIR/scripts/providers/github.sh"
 
-# github por último: não deve roubar id de quem já tem clickup/jira
+# github por último: não deve roubar id de quem já tem clickup/jira/linear
 # configurado — só entra como candidato automático se `gh` estiver
-# autenticado (github_credentials).
-PROVIDERS="clickup jira github"
+# autenticado (github_credentials). jira antes de linear: os dois usam o
+# mesmo formato de id (CHAVE-123) e, com ambos configurados, o desempate
+# no sinal fraco cai para jira por padrão — mesma solução já usada para o
+# id customizado do ClickUp (ver README, "Como o tracker é escolhido").
+PROVIDERS="clickup jira linear github"
 
 # ---------- 2. PR do GitHub ----------
 if printf '%s' "$TARGET" | grep -qE '^[0-9]+$' && command -v gh >/dev/null 2>&1; then

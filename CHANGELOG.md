@@ -6,6 +6,23 @@ Versionamento em [semver](https://semver.org): a versão do pool vive em
 dela — ver a seção "Versões" do [README](README.md). Cada versão do pool
 vira uma tag git (`vX.Y.Z`).
 
+## [0.8.0] - 2026-09-15
+
+### Adicionado
+
+- **`ms-codereview`: tracker Linear.** Novo provider (`providers/linear.sh`)
+  no mesmo contrato de ClickUp/Jira, descoberto sozinho por id no PR ou na
+  branch (`linear.app/<workspace>/issue/ENG-142`, badge `ENG-142`). A API
+  do Linear é só GraphQL, sem endpoint REST por ticket — `fetch-context.sh`
+  ganhou `http_post` (mesma passagem de credencial por stdin do
+  `http_get`) para viabilizar isso. Como o identificador do Linear
+  (`ENG-123`) tem o mesmo formato de uma chave do Jira, o desempate segue a
+  mesma solução já usada para o id customizado do ClickUp: Jira vence por
+  padrão quando os dois estão configurados, fixável com
+  `TRACKER_PROVIDER=linear`. Instalador (`credentials.json`) e `.env.example`
+  atualizados; `--provider linear` responde a pergunta do tracker sem
+  interação.
+
 ## [0.7.0] - 2026-09-05
 
 ### Corrigido

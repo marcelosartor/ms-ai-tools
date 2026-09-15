@@ -63,6 +63,52 @@ EOF
   assert_eq "f12: jira vence sobre github" "jira" "$(jq -r .provider "$status")"
 }
 
+f12_linear_bare_id_quando_so_linear_configurado() {
+  local d="$WORK/f12-linear" cfg base head status
+  new_repo "$d"
+  cfg="$WORK/f12-linear-config"
+  mkdir -p "$cfg"
+  cat > "$cfg/.env" <<'EOF'
+LINEAR_API_KEY=lin_api_fake
+EOF
+  echo x > "$d/a.ts"
+  git -C "$d" add -A && git -C "$d" commit -qm base
+  base="$(git -C "$d" rev-parse HEAD)"
+  git -C "$d" checkout -qb feat/ENG-142
+  echo y > "$d/a.ts"
+  git -C "$d" commit -qam feature
+  head="$(git -C "$d" rev-parse HEAD)"
+
+  ( cd "$d" && MS_AI_TOOLS_CONFIG_DIR="$cfg" CR_BASE_DIR="$d" "$SKILL_DIR/scripts/fetch-context.sh" "$base...$head" >/dev/null 2>&1 )
+  status="$(status_file_for "$d")"
+  assert_eq "f12: provider linear" "linear" "$(jq -r .provider "$status")"
+  assert_eq "f12: task_id ENG-142" "ENG-142" "$(jq -r .task_id "$status")"
+}
+
+f12_jira_vence_sobre_linear() {
+  local d="$WORK/f12-jira-linear" cfg base head status
+  new_repo "$d"
+  cfg="$WORK/f12-jira-linear-config"
+  mkdir -p "$cfg"
+  cat > "$cfg/.env" <<'EOF'
+JIRA_BASE_URL=https://example.atlassian.net
+JIRA_EMAIL=me@example.com
+JIRA_API_TOKEN=faketoken
+LINEAR_API_KEY=lin_api_fake
+EOF
+  echo x > "$d/a.ts"
+  git -C "$d" add -A && git -C "$d" commit -qm base
+  base="$(git -C "$d" rev-parse HEAD)"
+  git -C "$d" checkout -qb feat/ENG-142
+  echo y > "$d/a.ts"
+  git -C "$d" commit -qam feature
+  head="$(git -C "$d" rev-parse HEAD)"
+
+  ( cd "$d" && MS_AI_TOOLS_CONFIG_DIR="$cfg" CR_BASE_DIR="$d" "$SKILL_DIR/scripts/fetch-context.sh" "$base...$head" >/dev/null 2>&1 )
+  status="$(status_file_for "$d")"
+  assert_eq "f12: jira vence sobre linear (id ambíguo, ambos configurados)" "jira" "$(jq -r .provider "$status")"
+}
+
 f12_ci_checks_failure() {
   local d="$WORK/f12-ci" fakebin status
   new_repo "$d"
@@ -143,6 +189,8 @@ EOF
 
 f12_github_closing_issue
 f12_jira_vence_sobre_github
+f12_linear_bare_id_quando_so_linear_configurado
+f12_jira_vence_sobre_linear
 f12_ci_checks_failure
 f12_linha_fora_do_diff_recusa
 f12_linha_dentro_do_diff_prossegue

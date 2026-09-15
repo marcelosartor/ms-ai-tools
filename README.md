@@ -79,8 +79,8 @@ exemplo, e diz onde pegar o token de verdade:
 se o que está lá é melhor que o placeholder que ele traria. Rodar de novo com
 o mesmo tracker não duplica nada; com outro, acrescenta o bloco novo ao lado.
 
-`--provider clickup` (ou `jira-cloud`, `jira-server`) responde sem perguntar;
-`--provider none` pula a etapa.
+`--provider clickup` (ou `jira-cloud`, `jira-server`, `linear`) responde sem
+perguntar; `--provider none` pula a etapa.
 
 ### Dependências
 
@@ -197,7 +197,7 @@ Credencial existente nunca é sobrescrita nem descartada.
 
 | Ferramenta | Etapa do SDD | Versão | Comando | Credenciais |
 |---|---|---|---|---|
-| **[ms-codereview](ms-codereview/README.md)** | Revisão | 0.7.0 | `/ms-codereview` | ClickUp, Jira **ou** GitHub Issues |
+| **[ms-codereview](ms-codereview/README.md)** | Revisão | 0.8.0 | `/ms-codereview` | ClickUp, Jira, Linear **ou** GitHub Issues |
 | **ms-prd-generator** | Especificação | (Em Desenvolvimento) | — | — |
 | **ms-harness-generator** | Planejamento | (Em Desenvolvimento) | — | — |
 
@@ -227,10 +227,10 @@ novos commits é incremental — só o delta, com o que já foi resolvido
 separado do que continua aberto. Nada é postado no PR sem você pedir,
 inclusive o review inline que a skill deixa pronto para publicar.
 
-Busca o ticket no **ClickUp**, no **Jira** (Cloud e Server/DC) ou nas
-**GitHub Issues** (via `gh` autenticado, sem credencial própria),
-escolhendo o tracker pelo formato do id que encontra no PR ou na branch;
-sem tracker, `--spec-file` aponta um documento local como contexto. Traz
+Busca o ticket no **ClickUp**, no **Jira** (Cloud e Server/DC), no
+**Linear** ou nas **GitHub Issues** (via `gh` autenticado, sem credencial
+própria), escolhendo o tracker pelo formato do id que encontra no PR ou na
+branch; sem tracker, `--spec-file` aponta um documento local como contexto. Traz
 checklists de Node (Express/Fastify/NestJS), Vue/Quasar/Vuetify,
 React/Vite/Tailwind/shadcn, Android nativo (Kotlin/Compose), Java/Spring
 Boot, PostgreSQL/pgvector, SQL Server, SQLite no Android e MongoDB, mais
