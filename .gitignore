@@ -15,4 +15,5 @@ node_modules/
 # não é produto do pool, não é versionado
 CLAUDE.md
 docs
+temp/
 

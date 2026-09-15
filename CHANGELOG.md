@@ -6,6 +6,29 @@ Versionamento em [semver](https://semver.org): a versão do pool vive em
 dela — ver a seção "Versões" do [README](README.md). Cada versão do pool
 vira uma tag git (`vX.Y.Z`).
 
+## [0.1.0] - 2026-09-15
+
+### Adicionado
+
+- **`ms-context-raw-generator`: nova ferramenta, etapa de especificação.**
+  Gera o contexto bruto de um ticket (ClickUp, Jira Cloud/Server-DC ou
+  Linear) em markdown — título, metadados, descrição, campos
+  personalizados, comentários e anexos. Anexo com texto extraível
+  (markdown, txt, json, csv, log, yml, sql, html, xml, PDF com camada de
+  texto) é extraído por script; o resto (imagem, PDF escaneado) é
+  descrito pela IA a partir do arquivo baixado. Mesmo contrato de
+  provider do `ms-codereview` (`scripts/providers/*.sh`:
+  `<p>_id_matches`, `<p>_credentials`, `<p>_fetch`), estendido com
+  `<p>_attachments`. Reaproveita o contexto já coletado para o mesmo
+  ticket a menos que `--refresh` force nova busca.
+- **`ms-prd-generator`: nova ferramenta, etapa de especificação.** Gera um
+  PRD (objetivo, contexto, requisitos, fora de escopo, critérios de
+  aceite, lacunas) a partir de um ticket — via `ms-context-raw-generator`
+  —, de um arquivo local ou de texto colado. Nome do arquivo por
+  prioridade: id do ticket, nome do arquivo, ou sequencial `prd-seqNNN`
+  (`scripts/prd-number.sh`). Nunca sobrescreve um PRD existente sem
+  perguntar antes.
+
 ## [0.8.0] - 2026-09-15
 
 ### Adicionado

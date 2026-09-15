@@ -14,10 +14,12 @@ determinada, em vez de depender de disciplina manual repetida a cada
 projeto e a cada pessoa.
 
 A cobertura é parcial por natureza: o pool cresce por etapa do workflow, não
-por acúmulo de utilitários soltos. Hoje a etapa de **revisão** tem
-ferramenta pronta (`ms-codereview`); **especificação** e **planejamento** têm
-ferramenta em desenvolvimento (`ms-prd-generator` e `ms-harness-generator`);
-**implementação** ainda depende de processo manual.
+por acúmulo de utilitários soltos. Hoje as etapas de **revisão**
+(`ms-codereview`) e **especificação** (`ms-prd-generator`, mais
+`ms-context-raw-generator` para quem só precisa do contexto bruto de um
+ticket) têm ferramenta pronta; **planejamento** tem ferramenta em
+desenvolvimento (`ms-harness-generator`); **implementação** ainda depende de
+processo manual.
 
 Nada aqui é específico de cliente ou de projeto. O que uma ferramenta precisa
 saber do domínio vem do `CLAUDE.md` do repositório onde ela roda, ou do
@@ -198,7 +200,8 @@ Credencial existente nunca é sobrescrita nem descartada.
 | Ferramenta | Etapa do SDD | Versão | Comando | Credenciais |
 |---|---|---|---|---|
 | **[ms-codereview](ms-codereview/README.md)** | Revisão | 0.8.0 | `/ms-codereview` | ClickUp, Jira, Linear **ou** GitHub Issues |
-| **ms-prd-generator** | Especificação | (Em Desenvolvimento) | — | — |
+| **[ms-prd-generator](ms-prd-generator/README.md)** | Especificação | 0.1.0 | `/ms-prd-generator` | (delega ao ms-context-raw-generator, se a origem for ticket) |
+| **[ms-context-raw-generator](ms-context-raw-generator/README.md)** | Especificação | 0.1.0 | `/ms-context-raw-generator` | ClickUp, Jira **ou** Linear |
 | **ms-harness-generator** | Planejamento | (Em Desenvolvimento) | — | — |
 
 ### [ms-codereview](ms-codereview/README.md) — etapa de revisão
@@ -244,27 +247,66 @@ Requer `jq`, `curl` e `gh` autenticado.
 npx github:marcelosartor/ms-ai-tools ms-codereview
 ```
 
-### Em desenvolvimento
-
-Ainda sem skill instalável — sem comando, sem `SKILL.md`, marcadas como
-"(Em Desenvolvimento)" na coluna Versão da tabela acima. O link ao README, o
-comando e a versão real entram aqui assim que a ferramenta entrar no pool.
-
-#### ms-prd-generator — etapa de especificação
+### [ms-prd-generator](ms-prd-generator/README.md) — etapa de especificação
 
 **Por que existe:** a especificação de um workflow de SDD parte de um PRD
 (Product Requirements Document), e hoje esse documento é escrito à mão, com
 formato e nível de detalhe variando por quem escreve — quando existe. A
-ferramenta gera o PRD a partir do ticket ou das user stories, formalizando o
-documento que embasa o restante do workflow.
+ferramenta gera o PRD a partir de um ticket, de um arquivo local ou de texto
+colado, formalizando objetivo, requisitos, fora de escopo, critérios de
+aceite e lacunas — o documento que embasa o restante do workflow.
 
 **Quando usar:** no início do trabalho sobre um ticket ou um conjunto de
 user stories, antes de planejar ou implementar — o PRD gerado é a entrada
 da etapa seguinte.
 
-**Por que usar:** formato consistente entre PRDs, independente de quem
-escreveu, e rastreabilidade explícita entre o que o ticket pediu e o que o
-PRD formalizou como requisito.
+**Por que usar, e não escrever à mão:** formato consistente entre PRDs,
+independente de quem escreveu; rastreabilidade explícita entre o que o
+ticket pediu e o que o PRD formalizou como requisito (o que o contexto não
+deixa claro vira `Lacunas`, não é inventado); e, para origem em ticket, o
+contexto já vem completo — texto, comentários e anexos — via
+`ms-context-raw-generator`, em vez de alguém abrir o board e copiar à mão.
+
+```bash
+npx github:marcelosartor/ms-ai-tools ms-prd-generator
+```
+
+### [ms-context-raw-generator](ms-context-raw-generator/README.md) — etapa de especificação
+
+**Por que existe:** montar o contexto completo de um ticket — descrição,
+comentários, e o conteúdo de cada anexo — para embasar um PRD ou qualquer
+outro documento derivado é trabalho manual de abrir o board, copiar texto e
+descrever anexo um por um. A ferramenta formaliza essa coleta como parte do
+workflow de SDD, e é o que o `ms-prd-generator` usa quando a origem é um
+ticket.
+
+**Quando usar:** sempre que precisar do contexto bruto e completo de um
+ticket em markdown — sozinho (para revisar, arquivar, compartilhar) ou como
+entrada de outra ferramenta.
+
+**Por que usar, e não copiar do board à mão:** busca determinística por
+script (título, metadados, descrição, campos personalizados, comentários),
+extração automática de texto de anexo onde dá (markdown, txt, json, csv,
+PDF com camada de texto) e descrição por IA de anexo sem texto extraível
+(imagem, PDF escaneado) — documento final autocontido, sem exigir que quem
+lê abra o board ou o anexo original.
+
+Busca o ticket no **ClickUp**, no **Jira** (Cloud e Server/DC) ou no
+**Linear**, escolhendo o board pelo formato do id, ou forçado por
+`--provider`.
+
+Requer `jq` e `curl`.
+→ **[Instalação, configuração dos boards e limitações conhecidas](ms-context-raw-generator/README.md)**
+
+```bash
+npx github:marcelosartor/ms-ai-tools ms-context-raw-generator
+```
+
+### Em desenvolvimento
+
+Ainda sem skill instalável — sem comando, sem `SKILL.md`, marcada como
+"(Em Desenvolvimento)" na coluna Versão da tabela acima. O link ao README, o
+comando e a versão real entram aqui assim que a ferramenta entrar no pool.
 
 #### ms-harness-generator — etapa de planejamento
 
