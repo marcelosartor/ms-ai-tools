@@ -6,7 +6,7 @@ Versionamento em [semver](https://semver.org): a versão do pool vive em
 dela — ver a seção "Versões" do [README](README.md). Cada versão do pool
 vira uma tag git (`vX.Y.Z`).
 
-## [Não lançado]
+## [Pool 0.8.0] - 2026-09-21
 
 ### Adicionado
 
