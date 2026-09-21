@@ -11,7 +11,8 @@ outro leitor.
 - Arquivos tocados: {{arquivos}}
 - Checklists aplicáveis (já concatenados, só as seções da variante que
   casou): {{checklists}}
-- Worktree com o código do PR já no disco: {{worktree}}
+- Worktree com o código do PR já no disco, para leitura — não executar
+  nada dele: {{worktree}}
 
 ## Sua lente: {{lente}}
 

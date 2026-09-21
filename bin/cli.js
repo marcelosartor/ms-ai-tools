@@ -187,6 +187,7 @@ function doctor() {
     ['curl', 'falar com o tracker', 'sudo apt install curl  |  já vem no macOS'],
     ['gh', 'ler o PR do GitHub', 'https://cli.github.com — depois: gh auth login'],
     ['python3', 'scripts do tlc-spec-driven', 'sudo apt install python3  |  já vem no macOS'],
+    ['perl', 'higienizar texto de terceiros (prompt injection)', 'sudo apt install perl  |  já vem no macOS'],
   ]) {
     const achado = which(bin);
     linha(!!achado, bin, para, achado);

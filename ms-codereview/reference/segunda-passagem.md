@@ -28,9 +28,11 @@ sobreviver até aqui, despachar um subagent (`Agent`, `general-purpose`) com
 `prompts/refute.md` preenchido, um por blocker, em paralelo (até 8 por
 rodada; acima disso, agrupar achados do mesmo arquivo num único subagent).
 O subagent recebe acesso ao repositório, a `temp/cr/<alvo>/raw/` e ao
-worktree de `--keep` (passo 5) preenchido em `{{worktree}}` — pode
-escrever um teste de até 30 linhas ali para tentar reproduzir o cenário,
-em vez de confiar só na leitura. Mas **não** recebe o relatório inteiro —
+worktree de `--keep` (passo 5) preenchido em `{{worktree}}`. Se
+`checks.json.trusted` for `true` (`{{execucao}}` = `sim`), pode escrever um
+teste de até 30 linhas ali para tentar reproduzir o cenário, em vez de
+confiar só na leitura; se for `false` (`{{execucao}}` = `não`), o usuário
+não autorizou executar código do PR e o refutador só lê. Mas **não** recebe o relatório inteiro —
 só o achado que vai testar, sem saber dos outros. A tarefa dele é tentar
 derrubar a afirmação, não confirmá-la.
 

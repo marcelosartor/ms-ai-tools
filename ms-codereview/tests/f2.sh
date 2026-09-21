@@ -26,7 +26,7 @@ EOF
   chmod +x "$d/node_modules/.bin/vitest"
 
   ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/fetch-context.sh" "$base...$head" >/dev/null 2>&1 )
-  ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/run-checks.sh" "$base...$head" >/dev/null 2>&1 )
+  ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/run-checks.sh" "$base...$head" --trusted >/dev/null 2>&1 )
   rc=$?
   raw="$(find "$d/temp/cr" -name checks.json | head -1)"
 
@@ -47,7 +47,7 @@ f2_sem_node_modules_nao_roda() {
   head="$(git -C "$d" rev-parse HEAD)"
 
   ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/fetch-context.sh" "$base...$head" >/dev/null 2>&1 )
-  ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/run-checks.sh" "$base...$head" >/dev/null 2>&1 )
+  ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/run-checks.sh" "$base...$head" --trusted >/dev/null 2>&1 )
   rc=$?
   raw="$(find "$d/temp/cr" -name checks.json | head -1)"
 
@@ -68,7 +68,7 @@ f2_pr_altera_dependencias_nao_instala() {
   head="$(git -C "$d" rev-parse HEAD)"
 
   ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/fetch-context.sh" "$base...$head" >/dev/null 2>&1 )
-  ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/run-checks.sh" "$base...$head" >/dev/null 2>&1 )
+  ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/run-checks.sh" "$base...$head" --trusted >/dev/null 2>&1 )
   raw="$(find "$d/temp/cr" -name checks.json | head -1)"
 
   assert_eq "f2: PR altera deps -> não reaproveita node_modules" "indisponível" "$(jq -r .deps.status "$raw")"

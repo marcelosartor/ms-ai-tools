@@ -41,9 +41,53 @@ ficam ao lado, em `temp/<ticket>/context-raw/raw/`.
 Rodar de novo para o mesmo ticket, sem `--refresh`, pergunta se você quer
 reaproveitar o que já foi gerado ou buscar tudo de novo.
 
+### Segurança: prompt injection
+
+Descrição, comentário e anexo de ticket são escritos por qualquer pessoa
+com acesso ao ticket, e a IA os lê. Por isso o que vem do board é tratado
+como dado, nunca instrução. `scripts/fetch-raw-context.sh` faz, por
+script (a lógica está em `scripts/untrusted.sh`, idêntica à do
+`ms-codereview`):
+
+- remove do texto caracteres invisíveis (zero-width, bidi, Unicode
+  tags), de controle e comentários HTML — os jeitos mais baratos de
+  esconder instrução de quem lê o ticket renderizado;
+- envolve `ticket.md`, `attachments-manifest.md` e cada
+  `attachments/*.extraido.txt` num bloco
+  `<dado-nao-confiavel marca="…">`, com marca aleatória por execução: o
+  texto de dentro não consegue fechar o bloco e escrever depois dele
+  como se fosse instrução. O bloco vai junto para o contexto final,
+  então quem o ler depois (ex.: o `ms-prd-generator`) sabe onde termina
+  o dado;
+- registra em `raw/suspeitas.md` arquivo e linha de cada sinal (frases
+  de troca de papel, "ignore as instruções", comando remoto, pedido de
+  leitura de segredo, base64 longo, texto escondido por estilo). Nunca
+  cita o trecho, para não reinjetar o ataque. `injection_signals` em
+  `context-status.json` traz a contagem, e o script avisa ao terminar.
+
+**O que isso não garante.** É heurística: `suspeitas.md` vazio não prova
+que o ticket é seguro, e os padrões são fáceis de contornar. Imagem e PDF
+escaneado não passam pelo script — a IA os lê direto, e o `SKILL.md` só
+pede que ela descreva sem obedecer e sinalize. O que sobra é o seu olho:
+com sinais, leia o ticket no board antes de usar o contexto.
+
+Para limitar o que uma injeção bem-sucedida alcança, veja
+[Conteúdo de terceiros e prompt injection](../README.md#conteúdo-de-terceiros-e-prompt-injection)
+no README do pool.
+
+### Testes
+
+```bash
+bash ms-context-raw-generator/tests/run.sh
+```
+
+Bash puro, com um `curl` falso no `PATH`: roda o script de verdade contra
+um ClickUp de mentira com um ticket carregado de injeção e confere a
+higienização, os blocos marcados, os sinais e o cache.
+
 ### Configuração
 
-Requer `jq` e `curl`, e a credencial do board que você usa — mesmas
+Requer `jq`, `curl` e `perl` (sem `perl` a higienização é pulada e isso fica registrado em `suspeitas.md`), e a credencial do board que você usa — mesmas
 variáveis do `ms-codereview`, compartilhadas pelo mesmo
 `~/.config/ms-ai-tools/.env` quando as duas ferramentas estão instaladas
 (veja [`.env.example`](.env.example)):

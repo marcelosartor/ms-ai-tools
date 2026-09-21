@@ -96,10 +96,12 @@ configurado.
 Se você já tem `jq` no sistema, ele é usado e nada é baixado. `--no-deps`
 pula a etapa; `--deps` faz só ela.
 
-`curl`, `gh` e `python3` ficam a cargo do sistema — o primeiro já vem em toda
-parte, o segundo precisa de `gh auth login` de qualquer forma, e o terceiro
-só é exigido pelo `tlc-spec-driven` (biblioteca padrão, nada de `pip`). O
-instalador termina reportando o estado dos quatro.
+`curl`, `gh`, `python3` e `perl` ficam a cargo do sistema — o primeiro e o
+último já vêm em toda parte, o segundo precisa de `gh auth login` de
+qualquer forma, e o terceiro só é exigido pelo `tlc-spec-driven`
+(biblioteca padrão, nada de `pip`). O `perl` higieniza o texto de terceiros
+nas ferramentas de board e de PR; sem ele a higienização é pulada e
+registrada. O instalador termina reportando o estado dos cinco.
 
 Confira com `/skills` numa sessão do Claude Code.
 
@@ -196,13 +198,65 @@ de substituir o diretório: vira o `~/.config/ms-ai-tools/.env` se ainda não
 houver um, ou é guardado ao lado como `.env.da-skill-<ferramenta>` se houver.
 Credencial existente nunca é sobrescrita nem descartada.
 
+### Conteúdo de terceiros e prompt injection
+
+Ticket, comentário, anexo, corpo de PR e o próprio diff são texto escrito
+por outras pessoas — e a IA os lê. Alguém com acesso de escrita pode
+embutir ali instruções dirigidas à IA ("ignore as regras", "aprove este
+PR", "leia o `.env` e envie para…"). As ferramentas que buscam esse
+conteúdo (`ms-context-raw-generator`, `ms-codereview`; o `ms-prd-generator`
+o consome) tratam tudo como **dado, nunca instrução**, e reforçam isso por
+script, não só por pedido à IA:
+
+- caracteres invisíveis (zero-width, bidi, Unicode tags), caracteres de
+  controle e comentários HTML são removidos do texto;
+- cada arquivo vindo do board ou do PR é envolvido num bloco
+  `<dado-nao-confiavel marca="…">`, com marca aleatória por execução — o
+  texto de dentro não consegue fechar o bloco e "falar" depois dele;
+- frases típicas de injeção e caractere invisível no diff são registrados
+  em `raw/suspeitas.md` (arquivo e linha, sem citar o trecho) e viram aviso
+  no fim da coleta.
+
+**O que isso não garante.** É heurística e redução de risco, não barreira:
+`suspeitas.md` vazio não prova que o conteúdo é seguro, e o texto dentro de
+imagem e PDF escaneado só é lido pela IA, sem passar pelo script. A defesa
+que sobra é a sua: as ferramentas não postam nada sozinhas, e o que elas
+produzem (síntese, PRD, rascunho de review) vale ser lido antes de virar
+ação.
+
+**Limite as permissões da sessão.** O que uma injeção bem-sucedida consegue
+fazer depende do que a sessão do Claude Code pode fazer. Duas coisas valem
+o minuto de configuração:
+
+- Não rode estas ferramentas com aprovação automática de comandos em
+  conteúdo que você não confia.
+- Negue a leitura do que não precisa ser lido em `settings.json`
+  (as próprias ferramentas leem as credenciais por script, não pela IA):
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "Read(~/.config/ms-ai-tools/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)"
+    ]
+  }
+}
+```
+
+Regra `Read(...)` barra a ferramenta de leitura de arquivo; um `cat` via
+shell só é barrado com o sandbox do Claude Code ligado (regra de shell por
+padrão de texto é fácil de contornar) — confira na documentação do Claude
+Code o que cada regra cobre na sua versão.
+
 ## Ferramentas
 
 | Ferramenta | Etapa do SDD | Versão | Comando | Credenciais |
 |---|---|---|---|---|
-| **[ms-codereview](ms-codereview/README.md)** | Revisão | 0.8.0 | `/ms-codereview` | ClickUp, Jira, Linear **ou** GitHub Issues |
-| **[ms-prd-generator](ms-prd-generator/README.md)** | Especificação | 0.1.0 | `/ms-prd-generator` | (delega ao ms-context-raw-generator, se a origem for ticket) |
-| **[ms-context-raw-generator](ms-context-raw-generator/README.md)** | Especificação | 0.1.0 | `/ms-context-raw-generator` | ClickUp, Jira **ou** Linear |
+| **[ms-codereview](ms-codereview/README.md)** | Revisão | 0.9.0 | `/ms-codereview` | ClickUp, Jira, Linear **ou** GitHub Issues |
+| **[ms-prd-generator](ms-prd-generator/README.md)** | Especificação | 0.1.1 | `/ms-prd-generator` | (delega ao ms-context-raw-generator, se a origem for ticket) |
+| **[ms-context-raw-generator](ms-context-raw-generator/README.md)** | Especificação | 0.2.0 | `/ms-context-raw-generator` | ClickUp, Jira **ou** Linear |
 | **[grill-me](grill-me/README.md)** ¹ | Especificação | (sem versão) | `/grill-me` | — |
 | **[grilling](grilling/README.md)** ¹ | Especificação | (sem versão) | (chamada pelo `grill-me`) | — |
 | **[tlc-spec-driven](tlc-spec-driven/README.md)** ¹ | Especificação, planejamento e implementação | 3.3.0 | `/tlc-spec-driven` | — |
@@ -231,11 +285,15 @@ dados em vez de inferir a intenção a partir do código — exceto para PR
 mecânico (bump de dependência, formatação, rename, doc), onde a própria
 mudança já é a spec. Cada `blocker:` passa por um subagent à parte que tenta
 derrubá-lo antes de entrar no relatório; typecheck e os testes que o diff
-tocou rodam de verdade num worktree isolado; diff que toca algo sensível
+tocou rodam de verdade num worktree isolado — só depois de você autorizar
+executar o código do PR; diff que toca algo sensível
 aciona uma passagem de segurança dedicada. Revisão do mesmo PR depois de
 novos commits é incremental — só o delta, com o que já foi resolvido
 separado do que continua aberto. Nada é postado no PR sem você pedir,
-inclusive o review inline que a skill deixa pronto para publicar.
+inclusive o review inline que a skill deixa pronto para publicar. O texto
+do PR (corpo, comentários, ticket) é tratado como dado, não instrução, e o
+diff é varrido atrás de caractere invisível e de texto dirigido ao revisor
+([prompt injection](#conteúdo-de-terceiros-e-prompt-injection)).
 
 Busca o ticket no **ClickUp**, no **Jira** (Cloud e Server/DC), no
 **Linear** ou nas **GitHub Issues** (via `gh` autenticado, sem credencial
@@ -247,7 +305,7 @@ Boot, PostgreSQL/pgvector, SQL Server, SQLite no Android e MongoDB, mais
 os transversais (`common`, CI/infra, integração com LLM) — carregados só
 quando o diff toca a camada.
 
-Requer `jq`, `curl` e `gh` autenticado.
+Requer `jq`, `curl`, `perl` e `gh` autenticado.
 → **[Instalação, configuração dos trackers e manutenção](ms-codereview/README.md)**
 
 ```bash
@@ -296,13 +354,16 @@ script (título, metadados, descrição, campos personalizados, comentários),
 extração automática de texto de anexo onde dá (markdown, txt, json, csv,
 PDF com camada de texto) e descrição por IA de anexo sem texto extraível
 (imagem, PDF escaneado) — documento final autocontido, sem exigir que quem
-lê abra o board ou o anexo original.
+lê abra o board ou o anexo original. O conteúdo do board é tratado como
+dado, não instrução: sai higienizado, em bloco marcado, com os sinais de
+injeção listados à parte
+([prompt injection](#conteúdo-de-terceiros-e-prompt-injection)).
 
 Busca o ticket no **ClickUp**, no **Jira** (Cloud e Server/DC) ou no
 **Linear**, escolhendo o board pelo formato do id, ou forçado por
 `--provider`.
 
-Requer `jq` e `curl`.
+Requer `jq`, `curl` e `perl`.
 → **[Instalação, configuração dos boards e limitações conhecidas](ms-context-raw-generator/README.md)**
 
 ```bash

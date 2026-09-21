@@ -3,7 +3,7 @@ echo "-- F6: --prove-fix --"
 
 run_checks_f13() { # $1=diretório -- resto = args do script
   local d="$1"; shift
-  ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/run-checks.sh" "$@" >/dev/null 2>&1 )
+  ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/run-checks.sh" "$1" --trusted "${@:2}" >/dev/null 2>&1 )
 }
 
 # vitest falso: falha em src/a.spec.ts quando src/a.ts contém "BUG", passa

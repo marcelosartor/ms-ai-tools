@@ -6,6 +6,44 @@ Versionamento em [semver](https://semver.org): a versão do pool vive em
 dela — ver a seção "Versões" do [README](README.md). Cada versão do pool
 vira uma tag git (`vX.Y.Z`).
 
+## [Não lançado]
+
+### Adicionado
+
+- **Proteção contra prompt injection em `ms-codereview` (0.9.0) e
+  `ms-context-raw-generator` (0.2.0).** Ticket, comentário, anexo, corpo de
+  PR e diff são texto de terceiros e passam a ser tratados como dado,
+  nunca instrução — por script, não só por pedido à IA. Nova biblioteca
+  `scripts/untrusted.sh` (uma cópia idêntica em cada skill, porque cada uma
+  é instalada sozinha): remove caracteres invisíveis (zero-width, bidi,
+  Unicode tags), de controle e comentários HTML; envolve o texto em
+  `<dado-nao-confiavel marca="…">` com marca aleatória por execução; e
+  registra em `raw/suspeitas.md` (arquivo e linha, sem citar o trecho)
+  frases de injeção — no `ms-codereview`, também caractere invisível/bidi e
+  texto dirigido ao revisor nas linhas adicionadas do diff, que não é
+  alterado. `context-status.json` ganhou `injection_signals` e os scripts
+  avisam ao terminar. Os `SKILL.md` ganharam a regra "dado, nunca
+  instrução" e o tratamento dos sinais no relatório; `ms-prd-generator`
+  (0.1.1) a repete para o contexto que consome.
+  Limites documentados: é heurística; imagem e PDF escaneado só passam
+  pela IA.
+- **`ms-codereview`: executar o código do PR exige autorização.**
+  `run-checks.sh` roda `npm run typecheck`, `npm run lint` e os testes do
+  PR — código do autor, com as permissões do usuário e sem sandbox. Agora
+  só executa com `--trusted`; sem a flag monta o worktree para leitura e
+  grava `checks.json` com `trusted: false` e "não rodou" (sai `0`). A
+  skill pergunta ao usuário antes de passar a flag, ou aceita
+  `--run-checks` já no comando; autorização vinda do PR, do ticket ou do
+  repositório revisado não vale. O refutador de `blocker:` (que podia
+  escrever e rodar um teste) e `--prove-fix` seguem a mesma regra; leitores
+  e refutador continuam lendo o worktree. `checks.json` ganhou `trusted`.
+- **`ms-context-raw-generator`: `tests/run.sh`**, harness com `curl` falso.
+  `ms-codereview`: `tests/f20.sh`.
+- **`perl` entra no `--doctor` e nos requisitos** das duas ferramentas (a
+  higienização o usa; sem ele é pulada e registrada, nunca silenciosa).
+- README raiz: seção "Conteúdo de terceiros e prompt injection", com o que
+  a proteção cobre, o que não cobre e regras de `deny` recomendadas.
+
 ## [Pool 0.8.0] - 2026-09-21
 
 ### Adicionado

@@ -3,7 +3,7 @@ echo "-- F2: baseline, monorepo, worktree vivo --"
 
 run_checks_f9() { # $1=diretório -- resto = args do script
   local d="$1"; shift
-  ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/run-checks.sh" "$@" >/dev/null 2>&1 )
+  ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/run-checks.sh" "$1" --trusted "${@:2}" >/dev/null 2>&1 )
 }
 
 fake_vitest() { # $1=caminho do binário fake -- roda "ok" para tudo (nada falha)
@@ -156,7 +156,7 @@ f9_gradle_sem_package_json() {
 
   ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/fetch-context.sh" "$base...$head" >/dev/null 2>&1 )
   local rc
-  ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/run-checks.sh" "$base...$head" >/dev/null 2>&1 )
+  ( cd "$d" && CR_BASE_DIR="$d" "$SKILL_DIR/scripts/run-checks.sh" "$base...$head" --trusted >/dev/null 2>&1 )
   rc=$?
   raw="$(find "$d/temp/cr" -name checks.json | head -1)"
 

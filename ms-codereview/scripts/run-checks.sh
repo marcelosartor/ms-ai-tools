@@ -6,7 +6,15 @@
 # culpar o PR por erro pré-existente. Chamado pelo SKILL.md entre "ler os
 # testes" e "aplicar os checklists":
 #
-#   scripts/run-checks.sh <alvo> [--keep] [--prove-fix]
+#   scripts/run-checks.sh <alvo> [--trusted] [--keep] [--prove-fix]
+#
+# ATENÇÃO: typecheck, lint e testes são código do PR — `npm run typecheck`
+# vem do package.json dele, e os testes são arquivos dele. Rodar isso é
+# executar o que o autor escreveu, com as suas permissões, sem sandbox.
+# Por isso nada é executado sem --trusted, que só o usuário autoriza (a
+# skill pergunta antes; ver SKILL.md, passo 5). Sem a flag o script só
+# monta o worktree (leitura) e registra "não rodou" em checks.json, com
+# `trusted: false` — sai 0, para a revisão seguir só por leitura.
 #
 # Cria um worktree isolado no head_sha (não mexe no working tree do
 # usuário), reaproveita o node_modules já instalado quando o diff não
@@ -47,9 +55,11 @@ BASE_DIR="${CR_BASE_DIR:-$PWD}"
 TARGET="${1:-}"
 KEEP=false
 PROVE_FIX=false
+TRUSTED=false
 shift || true
 while [ $# -gt 0 ]; do
   case "$1" in
+    --trusted) TRUSTED=true ;;
     --keep) KEEP=true ;;
     --prove-fix) PROVE_FIX=true ;;
   esac
@@ -111,6 +121,29 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+
+# ---------- 1.5 portão: executar código do PR exige autorização ----------
+# O worktree acima é só checkout (leitura). Daqui em diante tudo é execução
+# de código do autor do PR; sem --trusted, para aqui.
+if [ "$TRUSTED" != true ]; then
+  NOT_TRUSTED_REASON="execução do código do PR não autorizada (rode com --trusted só em PR de autor de confiança)"
+  {
+    printf '# Verificações\n\n'
+    printf '## typecheck: não rodou (%s)\n\n## lint: não rodou (%s)\n\n## testes: não rodou (%s)\n\n' \
+      "$NOT_TRUSTED_REASON" "$NOT_TRUSTED_REASON" "$NOT_TRUSTED_REASON"
+  } > "$RAW/checks-result.md"
+  WORKTREE_JSON="null"
+  [ "$KEEP" != true ] || WORKTREE_JSON="$(jq -n --arg w "$WT" '$w')"
+  jq -n --arg r "$NOT_TRUSTED_REASON" --argjson worktree "$WORKTREE_JSON" '
+    ({status: "não rodou", reason: $r}) as $nr
+    | {trusted: false,
+       deps: $nr, typecheck: $nr, lint: $nr,
+       test: ($nr + {files: []}),
+       packages: [], worktree: $worktree, prove_fix: null}' > "$RAW/checks.json"
+  echo "verificações em: $RAW/checks-result.md"
+  echo "  não rodou: $NOT_TRUSTED_REASON"
+  exit 0
+fi
 
 # ---------- 2. manifesto mais próximo de cada arquivo (monorepo) ----------
 declare -A MANIFEST_CACHE
@@ -623,6 +656,7 @@ jq -n \
   --argjson worktree "$WORKTREE_JSON" \
   --argjson prove_fix "$PROVE_FIX_RESULT" \
   '{
+    trusted: true,
     deps: {status: $deps_status, reason: (if $deps_reason=="" then null else $deps_reason end)},
     typecheck: {status: $tc_status, reason: (if $tc_reason=="" then null else $tc_reason end)},
     lint: {status: $lint_status, reason: (if $lint_reason=="" then null else $lint_reason end)},

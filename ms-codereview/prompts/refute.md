@@ -9,7 +9,8 @@ do que está aqui e do que você mesmo for ler no repositório.
 - Afirmação: {{afirmacao}}
 - Cenário de falha descrito: {{cenario}}
 - Comparar `{{base}}` (antes) com `{{head}}` (depois)
-- Worktree com o código do PR já no disco, para executar: `{{worktree}}`
+- Worktree com o código do PR já no disco: `{{worktree}}`
+- Execução de código do PR autorizada pelo usuário: `{{execucao}}`
 
 ## O que fazer
 
@@ -25,11 +26,14 @@ do que está aqui e do que você mesmo for ler no repositório.
      esse tipo de situação — e por isso não é regressão?
    - A afirmação depende de um estado anterior que na verdade já mudou em
      `{{base}}`, ou de uma leitura errada do que o código faz?
-2.5. Se o cenário de falha pode ser demonstrado com um teste de até 30
-   linhas usando o runner do projeto, escrever esse teste em
+2.5. Só se a execução acima for `sim`: se o cenário de falha pode ser
+   demonstrado com um teste de até 30 linhas usando o runner do projeto, escrever esse teste em
    `{{worktree}}/temp-refute-<n>.<ext>`, rodar, e citar o resultado na
    `evidencia`. Apagar o arquivo depois de rodar — não faz parte do PR.
-   Sem runner disponível no worktree, seguir só por leitura.
+   Sem runner disponível no worktree, seguir só por leitura. Se a
+   execução for `não`, o usuário não autorizou rodar código do PR: não
+   executar nada do worktree (nem teste seu, nem script do
+   `package.json`), só ler.
 3. Se não encontrar nada que derrube a afirmação depois de olhar o
    entorno, isso não é "confirmar por default" — é reportar que a busca
    não achou refutação, com o que foi checado.

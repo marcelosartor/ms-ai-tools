@@ -11,6 +11,11 @@
 # Grava tudo em <base>/temp/cr/<pr>/raw/ (base = $CR_BASE_DIR ou o diretório atual).
 # O ticket sai sempre nos mesmos arquivos, seja qual for a fonte (tracker ou
 # --spec-file): raw/ticket.md, raw/ticket.json, raw/ticket-comments.json.
+# Todo texto de terceiros (corpo e comentários do PR, ticket) sai higienizado
+# e envolto num bloco <dado-nao-confiavel>; as linhas adicionadas do diff são
+# varridas sem serem alteradas. Sinais de prompt injection ficam em
+# raw/suspeitas.md (ver scripts/untrusted.sh).
+#
 # Não imprime credencial em nenhuma hipótese.
 #
 # --spec-file só roda quando passado explicitamente: sem ele, este passo nem
@@ -40,7 +45,7 @@ CRED_FILE="$CONFIG_DIR/.env"
 if [ -d "$CONFIG_DIR/bin" ]; then PATH="$CONFIG_DIR/bin:$PATH"; fi
 
 usage() {
-  sed -n '3,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '3,23p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 TARGET=""
@@ -113,6 +118,19 @@ ensure_gitignore() {
 }
 ensure_gitignore
 
+# ---------- 0.1 proteção contra prompt injection ----------
+# shellcheck disable=SC1091
+. "$SKILL_DIR/scripts/untrusted.sh"
+untrusted_init
+# Padrões específicos de revisão: quem escreve o PR quer o veredito, não só
+# que a IA obedeça.
+untrusted_pattern_add "tenta ditar o veredito da revisão" \
+  "(approve|aprove|aprovar|lgtm)[^.]{0,20}(this|the|este|esta|it|sem)[^.]{0,20}(pr|pull request|review|revis(ã|a)o)" code
+untrusted_pattern_add "manda omitir achados" \
+  "(do not|don't|never|n(ã|a)o|nunca)[ ]+(report|flag|mention|raise|reporte|aponte|mencione|levante)[^.]{0,40}(issue|finding|problem|vulnerab|security|bug|achado|problema|vulnerabilidade|seguran(ç|c)a)" code
+untrusted_pattern_add "manda pular a revisão ou as checagens" \
+  "(skip|bypass|pule|pular)[^.]{0,25}(review|security|checks?|revis(ã|a)o|seguran(ç|c)a|verifica(ç|c)(ã|a)o)" code
+
 STATUS_FILE="$RAW/context-status.json"
 PR_OK=false
 TASK_OK=false
@@ -142,7 +160,23 @@ if [ -n "$PREVIOUS_REPORT" ]; then
   PREVIOUS_SHA="${PREVIOUS_SHA#report-}"
 fi
 
+# Higieniza, marca e escaneia o que veio de terceiros. Idempotente: roda em
+# toda saída, e o que já foi protegido é deixado como está. O diff só é
+# varrido uma vez, quando base e head já são conhecidos.
+DIFF_SCANNED=false
+protect_raw() {
+  protect_untrusted "$RAW/pr-body.md" "corpo do PR $TARGET"
+  protect_untrusted "$RAW/pr-comments.md" "comentários do PR $TARGET"
+  protect_untrusted "$RAW/ticket.md" "ticket ${PROVIDER:-local} ${TASK_ID:-}"
+  if [ "$DIFF_SCANNED" = false ] && [ -n "$DIFF_BASE_SHA" ] && [ -n "$DIFF_HEAD_SHA" ]; then
+    untrusted_scan_diff "$DIFF_BASE_SHA...$DIFF_HEAD_SHA" "$BASE_DIR"
+    DIFF_SCANNED=true
+  fi
+  untrusted_report
+}
+
 write_status() {
+  protect_raw
   jq -n \
     --arg target "$TARGET" \
     --arg raw "$RAW" \
@@ -161,7 +195,8 @@ write_status() {
     --argjson previous_is_ancestor "$PREVIOUS_IS_ANCESTOR" \
     --arg previous_base_sha "$PREVIOUS_BASE_SHA" \
     --argjson base_moved "$BASE_MOVED" \
-    '{target:$target, raw_dir:$raw, pr_fetched:$pr_ok,
+    --argjson signals "$INJECTION_SIGNALS" \
+    '{target:$target, raw_dir:$raw, pr_fetched:$pr_ok, injection_signals:$signals,
       provider:(if $provider=="" then null else $provider end),
       task_id:(if $task_id=="" then null else $task_id end),
       task_fetched:$task_ok,
@@ -177,7 +212,7 @@ write_status() {
       reason:(if $reason=="" then null else $reason end), generated_at:$generated_at}' \
     > "$STATUS_FILE"
   echo "contexto em: $RAW"
-  jq -r '"  pr_fetched=\(.pr_fetched)  provider=\(.provider // "-")  task_id=\(.task_id // "-")  task_fetched=\(.task_fetched)  mechanical=\(.mechanical)\(if .mechanical_kind then " ("+.mechanical_kind+")" else "" end)  previous_sha=\(.previous_sha // "-")  reason=\(.reason // "-")"' "$STATUS_FILE"
+  jq -r '"  pr_fetched=\(.pr_fetched)  provider=\(.provider // "-")  task_id=\(.task_id // "-")  task_fetched=\(.task_fetched)  injection_signals=\(.injection_signals)  mechanical=\(.mechanical)\(if .mechanical_kind then " ("+.mechanical_kind+")" else "" end)  previous_sha=\(.previous_sha // "-")  reason=\(.reason // "-")"' "$STATUS_FILE"
 }
 
 # ---------- 1. credenciais ----------

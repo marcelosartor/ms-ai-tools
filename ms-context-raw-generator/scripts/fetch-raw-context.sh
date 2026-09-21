@@ -14,6 +14,10 @@
 # usuário e passa --refresh quando for o caso; sem a flag, achar
 # raw/ticket.md já existente é o script saindo cedo, sem tocar a rede.
 #
+# Todo texto que veio do board (ticket, anexos extraídos, manifesto) sai
+# higienizado e envolto num bloco <dado-nao-confiavel>, e os sinais de
+# prompt injection ficam em raw/suspeitas.md (ver scripts/untrusted.sh).
+#
 # Não imprime credencial em nenhuma hipótese.
 #
 # Códigos de saída:
@@ -33,7 +37,7 @@ CRED_FILE="$CONFIG_DIR/.env"
 if [ -d "$CONFIG_DIR/bin" ]; then PATH="$CONFIG_DIR/bin:$PATH"; fi
 
 usage() {
-  sed -n '3,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '3,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 TICKET=""
@@ -97,21 +101,44 @@ ensure_gitignore
 # ---------- cache: sem --refresh, ticket.md já existente encerra aqui ----------
 if [ "$REFRESH" != true ] && [ -f "$RAW/ticket.md" ]; then
   echo "cache em: $RAW (use --refresh para buscar de novo)"
+  cached_signals="$(jq -r '.injection_signals // 0' "$RAW/context-status.json" 2>/dev/null || echo 0)"
+  if [ "${cached_signals:-0}" -gt 0 ] 2>/dev/null; then
+    echo "ATENÇÃO: $cached_signals sinal(is) de possível prompt injection — leia $RAW/suspeitas.md antes de usar o conteúdo"
+  fi
   exit 0
 fi
+
+# shellcheck disable=SC1091
+. "$SKILL_DIR/scripts/untrusted.sh"
+untrusted_init
 
 STATUS_FILE="$RAW/context-status.json"
 PROVIDER=""
 REASON=""
 
+# Higieniza, marca e escaneia tudo que veio do board. Idempotente: pode
+# rodar em toda saída, e o que já foi protegido é deixado como está.
+protect_raw() {
+  local f
+  protect_untrusted "$RAW/ticket.md" "ticket ${PROVIDER:-board} $TICKET"
+  protect_untrusted "$RAW/attachments-manifest.md" "anexos do ticket $TICKET"
+  for f in "$RAW"/attachments/*.extraido.txt; do
+    [ -e "$f" ] || continue
+    protect_untrusted "$f" "texto extraído do anexo $(basename "$f" .extraido.txt)"
+  done
+  untrusted_report
+}
+
 write_status() {
+  protect_raw
   jq -n \
     --arg ticket "$TICKET" \
     --arg raw "$RAW" \
     --arg provider "$PROVIDER" \
     --arg reason "$REASON" \
     --arg generated_at "$(date -Iseconds)" \
-    '{ticket:$ticket, raw_dir:$raw,
+    --argjson signals "$INJECTION_SIGNALS" \
+    '{ticket:$ticket, raw_dir:$raw, injection_signals:$signals,
       provider:(if $provider=="" then null else $provider end),
       reason:(if $reason=="" then null else $reason end), generated_at:$generated_at}' \
     > "$STATUS_FILE"
@@ -214,3 +241,6 @@ extract_attachments "$RAW"
 
 write_status
 echo "contexto bruto em: $RAW"
+if [ "$INJECTION_SIGNALS" -gt 0 ]; then
+  echo "ATENÇÃO: $INJECTION_SIGNALS sinal(is) de possível prompt injection — leia $RAW/suspeitas.md antes de usar o conteúdo"
+fi
