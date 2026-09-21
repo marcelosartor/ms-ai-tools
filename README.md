@@ -1,8 +1,8 @@
 # ms-ai-tools
 
 Pool de ferramentas para desenvolvimento agêntico. Cada ferramenta é uma
-skill do Claude Code — algumas próprias, outras adaptadas de terceiros — e
-todas se instalam de uma vez.
+skill do Claude Code — algumas próprias, outras de terceiros incluídas com a
+licença e o crédito originais — e todas se instalam de uma vez.
 
 ## Objetivo
 
@@ -17,9 +17,9 @@ A cobertura é parcial por natureza: o pool cresce por etapa do workflow, não
 por acúmulo de utilitários soltos. Hoje as etapas de **revisão**
 (`ms-codereview`) e **especificação** (`ms-prd-generator`, mais
 `ms-context-raw-generator` para quem só precisa do contexto bruto de um
-ticket) têm ferramenta pronta; **planejamento** tem ferramenta em
-desenvolvimento (`ms-harness-generator`); **implementação** ainda depende de
-processo manual.
+ticket, e `grill-me` para afiar a ideia antes de escrevê-la) têm ferramenta
+pronta; **planejamento e implementação** têm o `tlc-spec-driven`, de
+terceiro; o `ms-harness-generator`, próprio, segue em desenvolvimento.
 
 Nada aqui é específico de cliente ou de projeto. O que uma ferramenta precisa
 saber do domínio vem do `CLAUDE.md` do repositório onde ela roda, ou do
@@ -96,9 +96,10 @@ configurado.
 Se você já tem `jq` no sistema, ele é usado e nada é baixado. `--no-deps`
 pula a etapa; `--deps` faz só ela.
 
-`curl` e `gh` ficam a cargo do sistema — um já vem em toda parte, o outro
-precisa de `gh auth login` de qualquer forma. O instalador termina reportando
-o estado dos três.
+`curl`, `gh` e `python3` ficam a cargo do sistema — o primeiro já vem em toda
+parte, o segundo precisa de `gh auth login` de qualquer forma, e o terceiro
+só é exigido pelo `tlc-spec-driven` (biblioteca padrão, nada de `pip`). O
+instalador termina reportando o estado dos quatro.
 
 Confira com `/skills` numa sessão do Claude Code.
 
@@ -202,7 +203,13 @@ Credencial existente nunca é sobrescrita nem descartada.
 | **[ms-codereview](ms-codereview/README.md)** | Revisão | 0.8.0 | `/ms-codereview` | ClickUp, Jira, Linear **ou** GitHub Issues |
 | **[ms-prd-generator](ms-prd-generator/README.md)** | Especificação | 0.1.0 | `/ms-prd-generator` | (delega ao ms-context-raw-generator, se a origem for ticket) |
 | **[ms-context-raw-generator](ms-context-raw-generator/README.md)** | Especificação | 0.1.0 | `/ms-context-raw-generator` | ClickUp, Jira **ou** Linear |
+| **[grill-me](grill-me/README.md)** ¹ | Especificação | (sem versão) | `/grill-me` | — |
+| **[grilling](grilling/README.md)** ¹ | Especificação | (sem versão) | (chamada pelo `grill-me`) | — |
+| **[tlc-spec-driven](tlc-spec-driven/README.md)** ¹ | Especificação, planejamento e implementação | 3.3.0 | `/tlc-spec-driven` | — |
 | **ms-harness-generator** | Planejamento | (Em Desenvolvimento) | — | — |
+
+¹ Ferramenta de terceiro, incluída sem modificação e sob a licença original —
+ver [Ferramentas de terceiros](#ferramentas-de-terceiros).
 
 ### [ms-codereview](ms-codereview/README.md) — etapa de revisão
 
@@ -302,6 +309,76 @@ Requer `jq` e `curl`.
 npx github:marcelosartor/ms-ai-tools ms-context-raw-generator
 ```
 
+### Ferramentas de terceiros
+
+`grill-me`, `grilling` e `tlc-spec-driven` não são do pool: são de autores
+externos, incluídas **sem modificação** e instaladas pelo mesmo instalador.
+Cada pasta traz o `LICENSE` original e, no `README.md`, o link da fonte, o
+autor e o commit de que a cópia foi tirada. A licença Apache 2.0 deste
+repositório **não** se aplica a elas.
+
+Como são cópias, não recebem atualização do upstream sozinhas — o commit
+registrado no README de cada uma é o ponto de comparação. Elas mantêm o nome
+original, sem o prefixo `ms-`, porque o nome da pasta é o comando e outras
+skills e docs as referenciam por ele.
+
+Se você já tinha alguma delas instalada por outro caminho (CLI do Tech Leads
+Club, plugin `mattpocock-skills`), o instalador as substitui e guarda a cópia
+anterior em `~/.config/ms-ai-tools/backups/`. Atualizar depois pela outra
+ferramenta sobrescreve a do pool — escolha uma fonte e fique com ela.
+
+### [grill-me](grill-me/README.md) e [grilling](grilling/README.md) — etapa de especificação
+
+**Por que existe:** a especificação de um SDD só é boa se a ideia por trás
+dela foi testada antes de virar documento. Decisão não resolvida vira lacuna
+no PRD, ou pior, suposição que o agente preenche sozinho durante a
+implementação. Autoria: [Matt Pocock](https://github.com/mattpocock/skills), MIT.
+
+**Quando usar:** com um plano, decisão ou ideia ainda em esboço, antes de
+gerar o PRD (`ms-prd-generator`) ou de abrir o Specify do `tlc-spec-driven`.
+
+**Por que usar, e não só conversar ou pedir um plano:** o plano vira uma
+árvore de decisões e a entrevista percorre **todos** os ramos, em rodadas —
+cada rodada traz todas as perguntas já respondíveis, numeradas, cada uma com
+a resposta que a skill recomenda, então você só reage ao que discorda. Fato do
+ambiente (arquivo, ferramenta) ela levanta sozinha; só decisão vem para você.
+E não termina nem age até não sobrar ramo por visitar e você confirmar o
+entendimento. O `grill-me` é só o atalho manual (`disable-model-invocation`);
+o método está no `grilling`, então instalar um exige o outro.
+
+```bash
+npx github:marcelosartor/ms-ai-tools grill-me grilling
+```
+
+### [tlc-spec-driven](tlc-spec-driven/README.md) — especificação, planejamento e implementação
+
+**Por que existe:** cobre as etapas depois do PRD — transformar o que foi
+pedido em spec verificável, design, tasks e código —, que é onde o SDD mais
+depende de disciplina manual: lembrar de escrever critério de aceite
+testável, de commitar atomicamente, de conferir o resultado contra a spec.
+Autoria: Felipe Rodrigues / [Tech Leads Club](https://github.com/tech-leads-club/agent-skills),
+CC-BY-4.0 (scripts em MIT).
+
+**Quando usar:** ao planejar ou implementar uma feature a partir de um PRD ou
+de uma descrição; ao validar uma implementação contra a spec; ao pausar e
+retomar um trabalho longo (o estado fica em `.specs/STATE.md`).
+
+**Por que usar, e não pedir ao agente que implemente direto:** a profundidade
+se ajusta ao tamanho da mudança (uma alteração de três arquivos não ganha
+cerimônia de feature grande); requisitos saem em EARS, com ID rastreável até
+task e teste; os portões da spec, das tasks, dos commits e da conclusão são
+**scripts Python**, que falham com código de saída — não dependem de o modelo
+lembrar; e quem verifica não é quem escreveu: um Verifier independente confere
+cada critério com evidência (`arquivo:linha`) e injeta falhas para checar que
+os testes as pegam, gravando `validation.md`. Aprovar spec ou tasks autoriza só
+mudança local — push e deploy pedem autorização à parte.
+
+Requer `python3` (biblioteca padrão).
+
+```bash
+npx github:marcelosartor/ms-ai-tools tlc-spec-driven
+```
+
 ### Em desenvolvimento
 
 Ainda sem skill instalável — sem comando, sem `SKILL.md`, marcada como
@@ -359,6 +436,13 @@ O `README.md` da ferramenta precisa conter três coisas:
   própria não precisa da seção.
 - **Como usar**: comando, argumentos, exemplo.
 
+**Ferramenta de terceiro** segue a mesma convenção, com três diferenças: os
+arquivos entram **sem modificação** (editar o `SKILL.md` afasta a cópia do
+upstream e, em CC-BY, obriga a registrar a mudança); a pasta leva o `LICENSE`
+original; e a seção de atribuição do `README.md` traz autor, link da fonte,
+licença, commit de origem e se houve alteração. Não use o prefixo `ms-`, e
+liste na seção [Ferramentas de terceiros](#ferramentas-de-terceiros).
+
 O `credentials.json` é o que faz o instalador perguntar pelo tracker sem
 conhecer tracker nenhum — cada ferramenta declara os seus:
 
@@ -410,4 +494,7 @@ carrega sob demanda.
 
 ## Licença
 
-[Apache 2.0](LICENSE).
+[Apache 2.0](LICENSE), exceto nas ferramentas de terceiros (`grill-me`,
+`grilling`, `tlc-spec-driven`), que mantêm a licença original — MIT e CC-BY-4.0
+— no `LICENSE` de cada pasta. Ver
+[Ferramentas de terceiros](#ferramentas-de-terceiros).

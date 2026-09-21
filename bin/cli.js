@@ -176,7 +176,7 @@ function list() {
 function doctor() {
   const jq = findJq(BIN_DIR);
   const linha = (ok, bin, para, extra) =>
-    console.log(`  ${ok ? '✓' : '✗'} ${bin.padEnd(6)} ${para}${extra ? `  — ${extra}` : ''}`);
+    console.log(`  ${ok ? '✓' : '✗'} ${bin.padEnd(7)} ${para}${extra ? `  — ${extra}` : ''}`);
 
   const faltando = [];
   console.log('estado das dependências:');
@@ -186,6 +186,7 @@ function doctor() {
   for (const [bin, para, como] of [
     ['curl', 'falar com o tracker', 'sudo apt install curl  |  já vem no macOS'],
     ['gh', 'ler o PR do GitHub', 'https://cli.github.com — depois: gh auth login'],
+    ['python3', 'scripts do tlc-spec-driven', 'sudo apt install python3  |  já vem no macOS'],
   ]) {
     const achado = which(bin);
     linha(!!achado, bin, para, achado);

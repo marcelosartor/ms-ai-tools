@@ -6,6 +6,25 @@ Versionamento em [semver](https://semver.org): a versão do pool vive em
 dela — ver a seção "Versões" do [README](README.md). Cada versão do pool
 vira uma tag git (`vX.Y.Z`).
 
+## [Não lançado]
+
+### Adicionado
+
+- **Ferramentas de terceiros: `grill-me`, `grilling` e `tlc-spec-driven`.**
+  Incluídas sem modificação, cada uma com o `LICENSE` original e um
+  `README.md` com atribuição (autor, fonte, licença, commit de origem).
+  `grill-me` e `grilling` são de Matt Pocock (MIT, `mattpocock/skills`
+  @ `959a8e9f`); `grill-me` só chama `grilling`, então as duas andam juntas.
+  `tlc-spec-driven` 3.3.0 é de Felipe Rodrigues / Tech Leads Club (CC-BY-4.0;
+  scripts em MIT, `tech-leads-club/agent-skills` @ `120b6767`). O instalador
+  já as descobria — pasta com `SKILL.md` —, e o manifesto de hashes, o backup
+  e o `--list` funcionam como para as ferramentas próprias.
+- **`--doctor` confere `python3`**, exigido pelos scripts do
+  `tlc-spec-driven`. Reportado, nunca bloqueante, como as demais dependências.
+- README raiz: seção "Ferramentas de terceiros" (o que é copiado e com que
+  licença, por que os nomes não levam `ms-`, conflito com instalação por
+  outro caminho) e a convenção para incluir ferramenta de terceiro.
+
 ## [0.1.0] - 2026-09-15
 
 ### Adicionado
